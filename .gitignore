@@ -1,0 +1,6 @@
+telegram_bot/settings.json
+
+.venv
+
+agent/__pycache__
+telegram_bot/__pycache__
