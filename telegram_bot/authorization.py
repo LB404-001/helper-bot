@@ -20,7 +20,10 @@ class Authorization:
             user = cursor.fetchone()
             if user:
                 cursor.execute("UPDATE users SET auth_status = %s WHERE login = %s AND password = %s", (False, login, password))
-                return cursor.rowcount > 0
+                status = cursor.rowcount > 0
+                if status:
+                    self.db_connection.commit()
+                return status
         return False
 
     def get_authorization(self, identifier: Identifiers, value: int) -> bool:
@@ -32,17 +35,23 @@ class Authorization:
                     return result[0]
         return False
 
-    def set_authorization(self, identifier: Identifiers, value: int, status: bool = False) -> bool:
-        if identifier == Identifiers.ID:
-            with self.db_connection.cursor() as cursor:
-                cursor.execute("UPDATE users SET auth_status = %s WHERE id = %s", (status, value))
-        if identifier == Identifiers.TELEGRAM_ID:
-            with self.db_connection.cursor() as cursor:
-                cursor.execute("UPDATE users SET auth_status = %s WHERE telegram_id = %s", (status, value))
-                return cursor.rowcount > 0
+    def set_authorization(self, identifier: Identifiers, value: int, auth_status: bool = False) -> bool:
+        with self.db_connection.cursor() as cursor:
+            status = False
+            if identifier == Identifiers.ID:
+                cursor.execute("UPDATE users SET auth_status = %s WHERE id = %s", (auth_status, value))
+                status = cursor.rowcount > 0
+            if identifier == Identifiers.TELEGRAM_ID:
+                cursor.execute("UPDATE users SET auth_status = %s WHERE telegram_id = %s", (auth_status, value))
+                status = cursor.rowcount > 0
+            if status:
+                self.db_connection.commit()
         return False
 
     def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
         with self.db_connection.cursor() as cursor:
             cursor.execute("UPDATE users SET telegram_id = %s WHERE id = %s", ((telegram_id if status else "NULL"), id))
-            return cursor.rowcount > 0
+            status = cursor.rowcount > 0
+            if status:
+                self.db_connection.commit()
+            return status

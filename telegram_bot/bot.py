@@ -21,6 +21,10 @@ class AUTH_STATUS(enum.Enum):
     AUTHORIZATION = "authorization"
     UNAUTHORIZED = "unauthorized"
 
+class CHAT_STATUS(enum.Enum):
+    SELECTING = "selecting"
+    SELECTED = "selected"
+
 class SCENARIOS(enum.Enum):
     LOGIN = "login"
     CHAT = "chat"
@@ -37,7 +41,8 @@ class Bot:
             {"command": "tg_remember", "description": "Запомнить меня в системе"},
             {"command": "tg_forget", "description": "Забыть меня из системы"},
             {"command": "start", "description": "Начать работу с ботом"},
-            {"command": "login", "description": "Войти в систему"}
+            {"command": "login", "description": "Войти в систему"},
+            {"command": "new_chat", "description": "Начать новый чат"},
         ]
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
 
