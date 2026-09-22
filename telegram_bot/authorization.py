@@ -9,27 +9,31 @@ class Authorization:
     def __init__(self, db_connection: psycopg.Connection):
         self.db_connection = db_connection
 
-    def authenticate_user(self, login: str, password: str) -> bool:
+    def authenticate_user(self, login: str = None, password: str = None, telegram_id: int = None) -> bool:
+        #auth by login
+        if (login is None) or (password is None):
+            return False
         with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM users WHERE login = %s AND password = %s", (login, password))
+            cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
             return cursor.fetchone() is not None
-
-    def deauthenticate_user(self, login: str, password: str) -> bool:
+        
+        #auth by tg
+        if telegram_id is None:
+            return False
         with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM users WHERE login = %s AND password = %s", (login, password))
-            user = cursor.fetchone()
-            if user:
-                cursor.execute("UPDATE users SET auth_status = %s WHERE login = %s AND password = %s", (False, login, password))
-                status = cursor.rowcount > 0
-                if status:
-                    self.db_connection.commit()
-                return status
-        return False
+            cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id))
+            return cursor.fetchone() is not None
 
     def get_authorization(self, identifier: Identifiers, value: int) -> bool:
         if identifier == Identifiers.ID:
             with self.db_connection.cursor() as cursor:
                 cursor.execute("SELECT auth_status FROM users WHERE id = %s", (value,))
+                result = cursor.fetchone()
+                if result:
+                    return result[0]
+        if identifier == Identifiers.TELEGRAM_ID:
+            with self.db_connection.cursor() as cursor:
+                cursor.execute("SELECT auth_status FROM users WHERE telegram_id = %s", (value,))
                 result = cursor.fetchone()
                 if result:
                     return result[0]

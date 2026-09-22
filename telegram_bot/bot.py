@@ -10,6 +10,32 @@ import json
 import enum
 
 from telegram_bot.authorization import Authorization, Identifiers
+from telegram_bot.chats import Chats
+
+import logging
+
+log_level_colors = {
+    logging.INFO: "\033[32m",
+    logging.WARNING: "\033[33m",
+    logging.DEBUG: "\033[36m",
+    logging.ERROR: "\033[31m",
+    logging.CRITICAL: "\033[41m",
+    "RESET": "\033[0m"
+}
+
+class ColorFormatter(logging.Formatter):
+    def format(self, record):
+        color = log_level_colors.get(record.levelno)
+        reset = log_level_colors.get("RESET")
+        message = super().format(record)
+        return f"{color}{message}{reset}"
+
+log_handler = logging.StreamHandler()
+log_handler.setFormatter(ColorFormatter("%(asctime)s [{%(levelname)s}] - %(message)s"))
+
+logger = logging.getLogger("bot")
+logger.setLevel(logging.DEBUG)
+logger.addHandler(log_handler)
 
 SETTINGS = json.load(open("telegram_bot/settings.json", "r"))
 
@@ -24,6 +50,8 @@ class AUTH_STATUS(enum.Enum):
 class CHAT_STATUS(enum.Enum):
     SELECTING = "selecting"
     SELECTED = "selected"
+    CREATING = "creating"
+    DELETING = "deleting"
 
 class SCENARIOS(enum.Enum):
     LOGIN = "login"
@@ -36,6 +64,7 @@ class Bot:
         self.app = Application.builder().token(self.token).build()
         self.DB = self.db_connect()
         self.auth = Authorization(self.DB)
+        self.chats = Chats(self.DB)
 
         commands = [
             {"command": "tg_remember", "description": "Запомнить меня в системе"},
@@ -55,6 +84,8 @@ class Bot:
         else:
             self.DB.close()
 
+    #user management
+
     async def login(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool | None:
         status = context.user_data.get('status')
 
@@ -62,23 +93,21 @@ class Bot:
             login, password = update.message.text.split(' ')
             auth_status = self.auth.authenticate_user(login, password)
             if auth_status:
+                self.remember_user()
                 context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
                 await update.message.reply_text("Вы успешно вошли в систему!")
                 return True
             else:
                 await update.message.reply_text("Неверный логин или пароль.")
                 return False
-
-        if status == AUTH_STATUS.AUTHORIZED.value:
-            await update.message.reply_text("Вы уже авторизованы.")
-            return True
         
         #try auto authorization (by tg)
         await update.message.reply_text("Проверка авторизации...")
         user_id = update.message.from_user.id
-        auth_status = self.auth.get_authorization(Identifiers.TELEGRAM_ID, user_id)
+        auth_status = self.auth.authenticate_user(telegram_id=user_id)
 
         if auth_status:
+            self.remember_user()
             context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
             await update.message.reply_text("Вы успешно вошли в систему!")
             return True
@@ -90,27 +119,63 @@ class Bot:
         return False
 
     async def remember_user(self, update: Update, value: bool = True):
-        if value:
-            self.auth.remember_user(update.message.from_user.id, update.message.from_user.id, status=True)
-        else:
-            self.auth.remember_user(update.message.from_user.id, update.message.from_user.id, status=False)
+        self.auth.remember_user(update.message.from_user.id, update.message.from_user.id, status=value)
         await update.message.reply_text(f"remember telegram:{value}")
 
+    #chat management
+    async def new_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        status = context.user_data.get('status')
+        user_id = update.message.from_user.id
+
+        if not self.auth.get_authorization(Identifiers.TELEGRAM_ID, user_id):
+            await update.message.reply_text("Вы должны быть авторизованы, чтобы создать новый чат.")
+            return False
+
+        if status == CHAT_STATUS.CREATING.value:
+            status = ""
+            title = update.message.text
+            res = self.chats.add_chat(title)
+            await update.message.reply_text("Чат создан" if res else "Ошибка при создании чата")
+            return True
+
+        status = CHAT_STATUS.CREATING.value
+        await update.message.reply_text("Введите название нового чата:")
+        return 
+
+    #handlers
     async def command_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         command = update.message.text.split(' ')[0][1:]  # Remove the leading '/'
+
+        #session check
+        #This shit is trying to check user session to identify user
+        #Now it is using telegram_id as session token
+        user_id = update.message.from_user.id
+        auth_status = self.auth.authenticate_user(telegram_id=user_id)
+        if not auth_status:
+            update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
+
+        #commands
         match command:
             case "tg_remember":
                 await self.remember_user(update, value=True)
+
             case "tg_forget":
                 await self.remember_user(update, value=False)
+
             case "start":
                 print(context.user_data.get('status'))
                 context.user_data['status'] = ""
                 await self.login(update, context)
+
             case "login":
                 print(context.user_data.get('status'))
                 context.user_data['status'] = ""
                 await self.login(update, context)
+
+            case "new_chat":
+                context.user_data['status'] = ""
+                await self.new_chat(update, context)
+
             case _:
                 await update.message.reply_text(f"Неизвестная команда: {command}")
 
