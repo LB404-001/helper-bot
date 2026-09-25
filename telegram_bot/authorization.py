@@ -56,6 +56,4 @@ class Authorization:
         with self.db_connection.cursor() as cursor:
             cursor.execute("UPDATE users SET telegram_id = %s WHERE id = %s", ((telegram_id if status else "NULL"), id))
             status = cursor.rowcount > 0
-            if status:
-                self.db_connection.commit()
             return status

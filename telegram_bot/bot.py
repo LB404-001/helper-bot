@@ -92,10 +92,14 @@ class Bot:
         logger.info("Login initialized")
 
         if status == AUTH_STATUS.AUTHORIZATION.value:
+            if len(update.message.text.split(' ')) < 2:
+                await update.message.reply_text("Введите и логин и пароль!")
+                return False
+            
             login, password = update.message.text.split(' ')
             auth_status = self.auth.authenticate_user(login, password)
             if auth_status:
-                self.remember_user()
+                await self.remember_user(update)
                 context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
                 logger.info(f"User:{login} authenticated")
                 await update.message.reply_text("Вы успешно вошли в систему!")
@@ -111,22 +115,22 @@ class Bot:
         auth_status = self.auth.authenticate_user(telegram_id=user_id)
 
         if auth_status:
-            self.remember_user()
+            await self.remember_user(update)
             context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
-            logger.info(f"User:{login} authenticated")
+            logger.info(f"User:{user_id} authenticated")
             await update.message.reply_text("Вы успешно вошли в систему!")
             return True
         
         else:
-            logger.warning(f"User:{login} authentication failed")
+            logger.warning(f"User:{user_id} authentication failed")
             context.user_data['status'] = AUTH_STATUS.AUTHORIZATION.value
             logger.debug(f"current user status:{context.user_data['status']}")
             await update.message.reply_text("Ошибка авторизации. Пожалуйста, введите логин и пароль в формате: 'логин пароль'")
         
         return False
 
-    async def remember_user(self, update: Update, value: bool = True):
-        self.auth.remember_user(update.message.from_user.id, update.message.from_user.id, status=value)
+    async def remember_user(self, user_id: int, update: Update, value: bool = True):
+        self.auth.remember_user(user_id, update.message.from_user.id, status=value)
         logger.info(f"User:{update.message.from_user.id} remembered")
         await update.message.reply_text(f"remember telegram:{value}")
 
