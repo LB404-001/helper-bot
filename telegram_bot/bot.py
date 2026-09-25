@@ -37,6 +37,7 @@ logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
+
 SETTINGS = json.load(open("telegram_bot/settings.json", "r"))
 
 TOKEN = SETTINGS["token"]
@@ -88,6 +89,7 @@ class Bot:
 
     async def login(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool | None:
         status = context.user_data.get('status')
+        logger.info("Login initialized")
 
         if status == AUTH_STATUS.AUTHORIZATION.value:
             login, password = update.message.text.split(' ')
@@ -95,9 +97,11 @@ class Bot:
             if auth_status:
                 self.remember_user()
                 context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
+                logger.info(f"User:{login} authenticated")
                 await update.message.reply_text("Вы успешно вошли в систему!")
                 return True
             else:
+                logger.warning(f"User:{login} authentication failed")
                 await update.message.reply_text("Неверный логин или пароль.")
                 return False
         
@@ -109,17 +113,21 @@ class Bot:
         if auth_status:
             self.remember_user()
             context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
+            logger.info(f"User:{login} authenticated")
             await update.message.reply_text("Вы успешно вошли в систему!")
             return True
         
         else:
+            logger.warning(f"User:{login} authentication failed")
             context.user_data['status'] = AUTH_STATUS.AUTHORIZATION.value
+            logger.debug(f"current user status:{context.user_data['status']}")
             await update.message.reply_text("Ошибка авторизации. Пожалуйста, введите логин и пароль в формате: 'логин пароль'")
         
         return False
 
     async def remember_user(self, update: Update, value: bool = True):
         self.auth.remember_user(update.message.from_user.id, update.message.from_user.id, status=value)
+        logger.info(f"User:{update.message.from_user.id} remembered")
         await update.message.reply_text(f"remember telegram:{value}")
 
     #chat management
@@ -128,6 +136,7 @@ class Bot:
         user_id = update.message.from_user.id
 
         if not self.auth.get_authorization(Identifiers.TELEGRAM_ID, user_id):
+            logger.warning(f"Chat creation failed. TG User:{user_id} is not authenticated")
             await update.message.reply_text("Вы должны быть авторизованы, чтобы создать новый чат.")
             return False
 
@@ -135,10 +144,16 @@ class Bot:
             status = ""
             title = update.message.text
             res = self.chats.add_chat(title)
-            await update.message.reply_text("Чат создан" if res else "Ошибка при создании чата")
-            return True
+            if res:
+                logger.info(f"Chat:{title} created by tg user:{user_id}")
+                update.message.reply_text("Чат создан")
+                return True
+            logger.error(f"Can't create Chat:{title} by tg user:{user_id}")
+            update.message.reply_text("Ошибка при создании чата")
+            return False
 
         status = CHAT_STATUS.CREATING.value
+        logger.debug(f"Chat creation initialized by tg user:{user_id}")
         await update.message.reply_text("Введите название нового чата:")
         return 
 
@@ -150,11 +165,13 @@ class Bot:
         #This shit is trying to check user session to identify user
         #Now it is using telegram_id as session token
         user_id = update.message.from_user.id
+        logger.debug(f"Command received from user:{user_id}")
         auth_status = self.auth.authenticate_user(telegram_id=user_id)
         if not auth_status:
             update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
 
         #commands
+        logger.debug(f"Command {command} execution")
         match command:
             case "tg_remember":
                 await self.remember_user(update, value=True)
