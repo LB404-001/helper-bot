@@ -9,20 +9,23 @@ class Authorization:
     def __init__(self, db_connection: psycopg.Connection):
         self.db_connection = db_connection
 
-    def authenticate_user(self, login: str = None, password: str = None, telegram_id: int = None) -> bool:
+    def authenticate_user(self, login: str = None, password: str = None, telegram_id: int = None) -> int | bool:
         #auth by login
         if (login is None) or (password is None):
             return False
+        
         with self.db_connection.cursor() as cursor:
             cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
-            return cursor.fetchone() is not None
+            res = cursor.fetchone()
+            return res[0] if res is not None else False
         
+        return False
         #auth by tg
-        if telegram_id is None:
-            return False
-        with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id))
-            return cursor.fetchone() is not None
+        # if telegram_id is None:
+        #     return False
+        # with self.db_connection.cursor() as cursor:
+        #     cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id))
+        #     return cursor.fetchone()
 
     def get_authorization(self, identifier: Identifiers, value: int) -> bool:
         if identifier == Identifiers.ID:
@@ -54,6 +57,12 @@ class Authorization:
 
     def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
         with self.db_connection.cursor() as cursor:
-            cursor.execute("UPDATE users SET telegram_id = %s WHERE id = %s", ((telegram_id if status else "NULL"), id))
+            cursor.execute("UPDATE users SET telegram_id = %s WHERE id = %s", ((telegram_id if status else None), id))
             status = cursor.rowcount > 0
-            return status
+
+        if status: 
+            self.db_connection.commit()
+        else:
+            self.db_connection.rollback()
+        
+        return status

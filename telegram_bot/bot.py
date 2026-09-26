@@ -11,6 +11,7 @@ import enum
 
 from telegram_bot.authorization import Authorization, Identifiers
 from telegram_bot.chats import Chats
+from telegram_bot.sessions import Sessions
 
 import logging
 
@@ -64,6 +65,7 @@ class Bot:
         self.token = token
         self.app = Application.builder().token(self.token).build()
         self.DB = self.db_connect()
+        self.sessions = Sessions(self.DB)
         self.auth = Authorization(self.DB)
         self.chats = Chats(self.DB)
 
@@ -97,40 +99,60 @@ class Bot:
                 return False
             
             login, password = update.message.text.split(' ')
-            auth_status = self.auth.authenticate_user(login, password)
-            if auth_status:
-                await self.remember_user(update)
+            id = self.auth.authenticate_user(login, password)
+            if id:
+                token = self.sessions.new_session(id)
+                if token is None:
+                    logger.error(f"token for user:{id} is none")
+                    return False
+                
                 context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
-                logger.info(f"User:{login} authenticated")
+                context.user_data['token'] = token
+                logger.info(f"User:{id} authenticated")
+
+                await self.remember_user(id, update, True)
                 await update.message.reply_text("Вы успешно вошли в систему!")
+
                 return True
+            
             else:
-                logger.warning(f"User:{login} authentication failed")
+                logger.warning(f"User:{id} authentication failed")
+
                 await update.message.reply_text("Неверный логин или пароль.")
+
                 return False
         
         #try auto authorization (by tg)
         await update.message.reply_text("Проверка авторизации...")
-        user_id = update.message.from_user.id
-        auth_status = self.auth.authenticate_user(telegram_id=user_id)
 
-        if auth_status:
-            await self.remember_user(update)
+        user_id = update.message.from_user.id
+        id = self.auth.authenticate_user(telegram_id=user_id)
+
+        if id:
+            token = self.sessions.new_session(id)
+            if token is None:
+                logger.error(f"token for user:{id} is none")
+                return False
+            
             context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
+            context.user_data['token'] = token
             logger.info(f"User:{user_id} authenticated")
+
             await update.message.reply_text("Вы успешно вошли в систему!")
+
             return True
         
         else:
-            logger.warning(f"User:{user_id} authentication failed")
+            logger.warning(f"User:{user_id} tg authentication failed")
             context.user_data['status'] = AUTH_STATUS.AUTHORIZATION.value
             logger.debug(f"current user status:{context.user_data['status']}")
+
             await update.message.reply_text("Ошибка авторизации. Пожалуйста, введите логин и пароль в формате: 'логин пароль'")
         
         return False
 
     async def remember_user(self, user_id: int, update: Update, value: bool = True):
-        self.auth.remember_user(user_id, update.message.from_user.id, status=value)
+        self.auth.remember_user(user_id, update.message.from_user.id, value)
         logger.info(f"User:{update.message.from_user.id} remembered")
         await update.message.reply_text(f"remember telegram:{value}")
 
@@ -165,40 +187,38 @@ class Bot:
     async def command_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         command = update.message.text.split(' ')[0][1:]  # Remove the leading '/'
 
-        #session check
-        #This shit is trying to check user session to identify user
-        #Now it is using telegram_id as session token
+        token = context.user_data.get("token", None)
         user_id = update.message.from_user.id
         logger.debug(f"Command received from user:{user_id}")
-        auth_status = self.auth.authenticate_user(telegram_id=user_id)
-        if not auth_status:
-            update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
 
         #commands
+        #open
         logger.debug(f"Command {command} execution")
-        match command:
-            case "tg_remember":
-                await self.remember_user(update, value=True)
+        if command in ["login", "start"]:
+            context.user_data['status'] = ""
+            await self.login(update, context)
+            return False
 
-            case "tg_forget":
-                await self.remember_user(update, value=False)
+        #protected
+        auth_status = self.sessions.check_session(token)
+        if auth_status is int:
+            match command:
+                case "tg_remember":
+                    await self.remember_user(update, value=True)
 
-            case "start":
-                print(context.user_data.get('status'))
-                context.user_data['status'] = ""
-                await self.login(update, context)
+                case "tg_forget":
+                    await self.remember_user(update, value=False)
 
-            case "login":
-                print(context.user_data.get('status'))
-                context.user_data['status'] = ""
-                await self.login(update, context)
+                case "new_chat":
+                    context.user_data['status'] = ""
+                    await self.new_chat(update, context)
 
-            case "new_chat":
-                context.user_data['status'] = ""
-                await self.new_chat(update, context)
+                case _:
+                    await update.message.reply_text(f"Неизвестная команда: {command}")
+            return
 
-            case _:
-                await update.message.reply_text(f"Неизвестная команда: {command}")
+        await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
+        return False
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = "resp"#self.core.process_message(update.message.text)
