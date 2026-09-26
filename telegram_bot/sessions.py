@@ -8,7 +8,6 @@ class Sessions:
     #create new session
     def new_session(self, user_id:int) -> str | None:
         #set user id as session token
-        print(user_id)
         with self.db_connection.cursor() as cursor:
             cursor.execute("SELECT 1 FROM sessions WHERE user_id = %s", (user_id,))
 

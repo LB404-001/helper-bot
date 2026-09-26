@@ -126,7 +126,7 @@ class Bot:
         await update.message.reply_text("Проверка авторизации...")
 
         user_id = update.message.from_user.id
-        id = self.auth.authenticate_user(telegram_id=user_id)
+        id = self.auth.authenticate_user_by_tg(telegram_id=user_id)
 
         if id:
             token = self.sessions.new_session(id)
@@ -153,8 +153,8 @@ class Bot:
 
     async def remember_user(self, user_id: int, update: Update, value: bool = True):
         self.auth.remember_user(user_id, update.message.from_user.id, value)
-        logger.info(f"User:{update.message.from_user.id} remembered")
-        await update.message.reply_text(f"remember telegram:{value}")
+        logger.info(f"User:{user_id} {f'remembered as tg user:{update.message.from_user.id}' if value else 'forgotten'}")
+        await update.message.reply_text(f"Аккаунт {'запомнен' if value else 'забыт'}")
 
     #chat management
     async def new_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -200,14 +200,17 @@ class Bot:
             return False
 
         #protected
-        auth_status = self.sessions.check_session(token)
-        if auth_status is int:
+        logger.debug(f"Session checking for token:{token} from user:{user_id}")
+        id = self.sessions.check_session(token)
+        session_status = True if type(id) is int else False
+        logger.debug(f"Session status:{session_status} for user:{user_id}")
+        if session_status:
             match command:
                 case "tg_remember":
-                    await self.remember_user(update, value=True)
+                    await self.remember_user(id, update, value=True)
 
                 case "tg_forget":
-                    await self.remember_user(update, value=False)
+                    await self.remember_user(id, update, value=False)
 
                 case "new_chat":
                     context.user_data['status'] = ""

@@ -20,12 +20,14 @@ class Authorization:
             return res[0] if res is not None else False
         
         return False
-        #auth by tg
-        # if telegram_id is None:
-        #     return False
-        # with self.db_connection.cursor() as cursor:
-        #     cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id))
-        #     return cursor.fetchone()
+
+    def authenticate_user_by_tg(self, telegram_id: int) -> int | bool:
+        with self.db_connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
+            res = cursor.fetchone()
+            return res[0] if res is not None else False
+        
+        return False
 
     def get_authorization(self, identifier: Identifiers, value: int) -> bool:
         if identifier == Identifiers.ID:
