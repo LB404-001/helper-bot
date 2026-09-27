@@ -28,3 +28,21 @@ class Sessions:
             res = cursor.fetchone()
             return None if res is None else res[0]
         return None
+
+import redis
+class RedisSessions:
+    def __init__(self, redis_connection: redis.Redis):
+        self.redis: redis.Redis = redis_connection
+    
+    def save(self):
+        pass
+
+    def load(self):
+        pass
+
+    def new_session(self, user_id:int) -> str | None:
+        self.redis.set(f"session:{user_id}", user_id, ex=60)
+        return user_id
+
+    def check_session(self, token:str) -> int | None:
+        return self.redis.get(f"session:{token}", None)
