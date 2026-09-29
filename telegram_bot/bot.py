@@ -8,10 +8,11 @@ from agent.core import Core
 import psycopg
 import json
 import enum
+import redis
 
 from telegram_bot.authorization import Authorization, Identifiers
 from telegram_bot.chats import Chats
-from telegram_bot.sessions import Sessions
+from telegram_bot.sessions import Sessions, RedisSessions
 
 import logging
 
@@ -65,7 +66,7 @@ class Bot:
         self.token = token
         self.app = Application.builder().token(self.token).build()
         self.DB = self.db_connect()
-        self.sessions = Sessions(self.DB)
+        self.sessions = RedisSessions(redis.Redis(host="localhost", port=6379, db=0, decode_responses=True))#Sessions(self.DB)
         self.auth = Authorization(self.DB)
         self.chats = Chats(self.DB)
 
@@ -105,9 +106,11 @@ class Bot:
                 if token is None:
                     logger.error(f"token for user:{id} is none")
                     return False
+                logger.info(f"initialized new session:{token} for user:{id}")
                 
                 context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
                 context.user_data['token'] = token
+                context.user_data['id'] = id
                 logger.info(f"User:{id} authenticated")
 
                 await self.remember_user(id, update, True)
@@ -133,9 +136,11 @@ class Bot:
             if token is None:
                 logger.error(f"token for user:{id} is none")
                 return False
+            logger.info(f"initialized new session:{token} for user:{id}")
             
             context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
             context.user_data['token'] = token
+            context.user_data['id'] = id
             logger.info(f"User:{user_id} authenticated")
 
             await update.message.reply_text("Вы успешно вошли в систему!")
@@ -200,10 +205,10 @@ class Bot:
             return False
 
         #protected
-        logger.debug(f"Session checking for token:{token} from user:{user_id}")
-        id = self.sessions.check_session(token)
-        session_status = True if type(id) is int else False
-        logger.debug(f"Session status:{session_status} for user:{user_id}")
+        id = context.user_data.get("id", None)
+        logger.debug(f"Session checking for token:{token} and user: {id} from tg user:{user_id}")
+        session_status = self.sessions.check_session(id, token)
+        logger.debug(f"Session status:{session_status} for tg user:{user_id}")
         if session_status:
             match command:
                 case "tg_remember":

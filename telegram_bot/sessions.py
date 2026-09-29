@@ -22,27 +22,39 @@ class Sessions:
                 self.db_connection.rollback()
         return None
     
-    def check_session(self, token: str) -> int | None:
+    def check_session(self, id: int, token: str) -> bool:
+        if id is None or token is None:
+            return False
         with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT user_id FROM sessions WHERE token = %s", (token,))
+            cursor.execute("SELECT token FROM sessions WHERE user_id = %s", (id,))
             res = cursor.fetchone()
-            return None if res is None else res[0]
-        return None
+            return res[0] == token
+        return False
 
 import redis
 class RedisSessions:
     def __init__(self, redis_connection: redis.Redis):
         self.redis: redis.Redis = redis_connection
     
-    def save(self):
-        pass
+    def get_all(self) -> dict:
+        res = {}
+        for k in self.redis.scan_iter("session_token:id:*"):
+            res[k] = self.redis.get(f"session_id:token:{k}")
+        return res
 
-    def load(self):
-        pass
+    def new_session(self, id:int) -> str | None:
+        #id-token
+        self.redis.set(f"session:{id}", str(id), ex=3600)
+        return str(id)
 
-    def new_session(self, user_id:int) -> str | None:
-        self.redis.set(f"session:{user_id}", user_id, ex=60)
-        return user_id
+    def check_session(self, id: int, token:str) -> bool:
+        #get token by id
+        if id is None or token is None:
+            return False
+        tk = self.redis.get(f"session:{id}")
 
-    def check_session(self, token:str) -> int | None:
-        return self.redis.get(f"session:{token}", None)
+        #expire session
+        if tk == token:
+            self.redis.expire(f"session:{id}", 3600)
+
+        return tk == token
