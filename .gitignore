@@ -2,5 +2,7 @@ telegram_bot/settings.json
 
 .venv
 
+data
+
 agent/__pycache__
 telegram_bot/__pycache__

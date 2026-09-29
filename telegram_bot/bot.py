@@ -33,7 +33,7 @@ class ColorFormatter(logging.Formatter):
         return f"{color}{message}{reset}"
 
 log_handler = logging.StreamHandler()
-log_handler.setFormatter(ColorFormatter("%(asctime)s [{%(levelname)s}] - %(message)s"))
+log_handler.setFormatter(ColorFormatter("%(asctime)s [%(levelname)s] - %(message)s"))
 
 logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
@@ -43,7 +43,8 @@ logger.addHandler(log_handler)
 SETTINGS = json.load(open("telegram_bot/settings.json", "r"))
 
 TOKEN = SETTINGS["token"]
-DB_SETTINGS = SETTINGS["connection_settings"]
+DB_CONNECTION_SETTINGS = SETTINGS["db_connection_settings"]
+REDIS_CONNECTION_SETTINGS = SETTINGS["redis_connection_settings"]
 
 class AUTH_STATUS(enum.Enum):
     AUTHORIZED = "authorized"
@@ -65,8 +66,8 @@ class Bot:
         self.core = core
         self.token = token
         self.app = Application.builder().token(self.token).build()
-        self.DB = self.db_connect()
-        self.sessions = RedisSessions(redis.Redis(host="localhost", port=6379, db=0, decode_responses=True))#Sessions(self.DB)
+        self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
+        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS))#Sessions(self.DB)
         self.auth = Authorization(self.DB)
         self.chats = Chats(self.DB)
 
@@ -80,7 +81,7 @@ class Bot:
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
 
     def db_connect(self):
-        return psycopg.connect(**DB_SETTINGS)
+        return psycopg.connect(**DB_CONNECTION_SETTINGS)
 
     def db_disconnect(self, connection: psycopg.Connection = None):
         if connection:

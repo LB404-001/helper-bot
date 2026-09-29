@@ -1,0 +1,33 @@
+services:
+  bot:
+    build: .
+    depends_on:
+      - db
+      - redis
+    networks:
+      - helper
+
+  db:
+    image: postgres:17
+    ports: 
+      - "5555:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: helper
+      POSTGRES_USER: bot
+      POSTGRES_PASSWORD: bot
+    networks:
+      - helper
+
+  redis:
+    image: redis:7
+    ports: 
+      - "6666:6379"
+    networks:
+      - helper
+networks:
+  helper:
+
+volumes:
+  postgres_data:
