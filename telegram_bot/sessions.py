@@ -1,5 +1,7 @@
 import psycopg
 import enum
+import hashlib
+import secrets
 
 class Sessions:
     def __init__(self, db_connection: psycopg.Connection):
@@ -35,26 +37,24 @@ import redis
 class RedisSessions:
     def __init__(self, redis_connection: redis.Redis):
         self.redis: redis.Redis = redis_connection
-    
-    def get_all(self) -> dict:
-        res = {}
-        for k in self.redis.scan_iter("session_token:id:*"):
-            res[k] = self.redis.get(f"session_id:token:{k}")
-        return res
 
     def new_session(self, id:int) -> str | None:
         #id-token
-        self.redis.set(f"session:{id}", str(id), ex=3600)
-        return str(id)
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        self.redis.set(f"session:{id}", token_hash, ex=3600)
+        return token
 
     def check_session(self, id: int, token:str) -> bool:
         #get token by id
         if id is None or token is None:
             return False
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
         tk = self.redis.get(f"session:{id}")
 
         #expire session
-        if tk == token:
+        if tk == token_hash:
             self.redis.expire(f"session:{id}", 3600)
+            return True
 
-        return tk == token
+        return False
