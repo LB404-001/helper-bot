@@ -40,7 +40,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
 
-SETTINGS = json.load(open("telegram_bot/settings.json", "r"))
+SETTINGS = json.load(open("telegram_bot/local_settings.json", "r"))
 
 TOKEN = SETTINGS["token"]
 DB_CONNECTION_SETTINGS = SETTINGS["db_connection_settings"]

@@ -1,5 +1,6 @@
 import psycopg
 import enum
+from argon2 import PasswordHasher
 
 class Identifiers(enum.Enum):
     ID = "id"
@@ -8,16 +9,23 @@ class Identifiers(enum.Enum):
 class Authorization:
     def __init__(self, db_connection: psycopg.Connection):
         self.db_connection = db_connection
+        self.ph = PasswordHasher()
 
-    def authenticate_user(self, login: str = None, password: str = None, telegram_id: int = None) -> int | bool:
+    def authenticate_user(self, login: str = None, password: str = None) -> int | bool:
         #auth by login
         if (login is None) or (password is None):
             return False
         
         with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
+            #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
+            cursor.execute("SELECT id, password FROM users WHERE login = %s", (login,))
             res = cursor.fetchone()
-            return res[0] if res is not None else False
+            if res is None:
+                return False
+            id, pwd = res
+
+            if self.ph.verify(pwd, password):
+                return id
         
         return False
 
