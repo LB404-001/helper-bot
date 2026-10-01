@@ -13,6 +13,7 @@ import redis
 from telegram_bot.authorization import Authorization, Identifiers
 from telegram_bot.chats import Chats
 from telegram_bot.sessions import Sessions, RedisSessions
+from agent.comfy.comfy import Comfy
 
 import logging
 
@@ -57,9 +58,15 @@ class CHAT_STATUS(enum.Enum):
     CREATING = "creating"
     DELETING = "deleting"
 
+class IMG_STATUS(enum.Enum):
+    PROMPTING = "prompting"
+    PROCESSING = "processing"
+    COMPLETE = "complete"
+
 class SCENARIOS(enum.Enum):
     LOGIN = "login"
     CHAT = "chat"
+    IMAGE_GEN = "image_gen"
 
 class Bot:
     def __init__(self, core: Core, token=TOKEN):
@@ -77,6 +84,7 @@ class Bot:
             {"command": "start", "description": "Начать работу с ботом"},
             {"command": "login", "description": "Войти в систему"},
             {"command": "new_chat", "description": "Начать новый чат"},
+            {"command": "create_image", "description": "Создать изображение"},
         ]
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
 
@@ -189,6 +197,24 @@ class Bot:
         await update.message.reply_text("Введите название нового чата:")
         return 
 
+    #creating image
+    async def create_image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        status = context.user_data.get("status")
+        if status == IMG_STATUS.PROMPTING.value:
+            prompt = update.message.text
+            if prompt is None:
+                await update.message.reply_text("Пустой промпт! Введите позитивный промпт")
+            cmf = Comfy()
+            img = await cmf.base_scene(prompt, "")
+            #print(img)
+            context.user_data['status'] = ""
+            await update.message.reply_photo(photo=img)
+            return
+
+        context.user_data['status'] = IMG_STATUS.PROMPTING.value
+        await update.message.reply_text("Введите позитивный промпт")
+        return
+
     #handlers
     async def command_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         command = update.message.text.split(' ')[0][1:]  # Remove the leading '/'
@@ -217,6 +243,9 @@ class Bot:
 
                 case "tg_forget":
                     await self.remember_user(id, update, value=False)
+                
+                case "create_image":
+                    await self.create_image(update, context)
 
                 case "new_chat":
                     context.user_data['status'] = ""
@@ -233,11 +262,41 @@ class Bot:
             response = "resp"#self.core.process_message(update.message.text)
             await update.message.reply_text(response)
 
-    async def main_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if context.user_data.get('status') == AUTH_STATUS.AUTHORIZED.value:
-            await self.message_handler(update, context)
-        else:
-            await self.login(update, context)
+    async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        token = context.user_data.get("token", None)
+        user_id = update.message.from_user.id
+        logger.debug(f"Message received from user:{user_id}")
+
+        message = update.message.text
+
+        #commands
+        #open
+        logger.debug(f"Message {message} execution")
+
+        #protected
+        id = context.user_data.get("id", None)
+        logger.debug(f"Session checking for token:{token} and user: {id} from tg user:{user_id}")
+        session_status = self.sessions.check_session(id, token)
+        logger.debug(f"Session status:{session_status} for tg user:{user_id}")
+
+        if session_status:
+            status = context.user_data.get("status")
+            match status:
+                case AUTH_STATUS.AUTHORIZATION.value:
+                    await self.login(update, context)
+
+                case IMG_STATUS.PROMPTING.value:
+                    await self.create_image(update, context)
+
+                case _:
+                    logger.error(f"Unknown status:{status} from user:{id}")
+                    context.user_data[status] = ""
+                    await update.message.reply_text("Неизвестная ошибка. Примените команду повторно")
+
+            return
+
+        await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
+        return False
 
     def add_handler(self, handler):
         self.app.add_handler(handler)
@@ -262,7 +321,7 @@ class Bot:
 
     def run(self):
         #self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.main_handler))
-        self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login"], self.command_handler))
-        self.app.add_handler(MessageHandler(filters.TEXT, self.main_handler))
+        self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
+        self.app.add_handler(MessageHandler(filters.TEXT, self.message_handler))
         print("Бот запущен!")
         self.app.run_polling()
