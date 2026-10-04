@@ -205,7 +205,8 @@ class Bot:
             if prompt is None:
                 await update.message.reply_text("Пустой промпт! Введите позитивный промпт")
             cmf = Comfy()
-            img = await cmf.base_scene(prompt, "", update.message.reply_text)
+            msg = await update.message.reply_text("Отравка запроса...")
+            img = await cmf.base_scene(prompt, "", msg.edit_text)
             
             context.user_data['status'] = ""
 
