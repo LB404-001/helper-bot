@@ -205,15 +205,20 @@ class Bot:
             if prompt is None:
                 await update.message.reply_text("Пустой промпт! Введите позитивный промпт")
             cmf = Comfy()
-            img = await cmf.base_scene(prompt, "")
-            #print(img)
+            img = await cmf.base_scene(prompt, "", update.message.reply_text)
+            
             context.user_data['status'] = ""
-            await update.message.reply_photo(photo=img)
-            return
+
+            if isinstance(img, bytes):
+                await update.message.reply_photo(photo=img)
+                return True
+
+            await update.message.reply_text(img)
+            return False
 
         context.user_data['status'] = IMG_STATUS.PROMPTING.value
         await update.message.reply_text("Введите позитивный промпт")
-        return
+        return False
 
     #handlers
     async def command_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
