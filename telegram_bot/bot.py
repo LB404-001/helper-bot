@@ -15,6 +15,8 @@ from telegram_bot.chats import Chats
 from telegram_bot.sessions import Sessions, RedisSessions
 from agent.comfy.comfy import Comfy
 
+from telegram_bot.conversations.image_gen import ImageGen
+
 import logging
 
 log_level_colors = {
@@ -226,6 +228,7 @@ class Bot:
         command = update.message.text.split(' ')[0][1:]  # Remove the leading '/'
 
         token = context.user_data.get("token", None)
+        context.user_data["scenario"] = None
         user_id = update.message.from_user.id
         logger.debug(f"Command received from user:{user_id}")
 
@@ -233,7 +236,8 @@ class Bot:
         #open
         logger.debug(f"Command {command} execution")
         if command in ["login", "start"]:
-            context.user_data['status'] = ""
+            context.user_data['status'] = None
+            context.user_data["scenario"] = SCENARIOS.LOGIN.value
             await self.login(update, context)
             return False
 
@@ -250,8 +254,10 @@ class Bot:
                 case "tg_forget":
                     await self.remember_user(id, update, value=False)
                 
-                case "create_image":
-                    await self.create_image(update, context)
+                # case "create_image":
+                #     context.user_data["scenario"] = SCENARIOS.IMAGE_GEN.value
+                #     context.user_data["status"] = None
+                #     await self.create_image(update, context)
 
                 case "new_chat":
                     context.user_data['status'] = ""
@@ -263,6 +269,9 @@ class Bot:
 
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
+
+
+
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
             response = "resp"#self.core.process_message(update.message.text)
@@ -287,16 +296,18 @@ class Bot:
 
         if session_status:
             status = context.user_data.get("status")
-            match status:
-                case AUTH_STATUS.AUTHORIZATION.value:
+            scenario = context.user_data.get("scenario")
+            match scenario:
+                case SCENARIOS.LOGIN.value:
                     await self.login(update, context)
 
-                case IMG_STATUS.PROMPTING.value:
+                case SCENARIOS.IMAGE_GEN.value:
                     await self.create_image(update, context)
 
                 case _:
-                    logger.error(f"Unknown status:{status} from user:{id}")
-                    context.user_data[status] = ""
+                    logger.error(f"Unknown scenario:{status} from user:{id}")
+                    context.user_data["status"] = ""
+                    context.user_data["scenario"] = None
                     await update.message.reply_text("Неизвестная ошибка. Примените команду повторно")
 
             return
@@ -326,8 +337,14 @@ class Bot:
             await update.message.reply_text("Неизвестная команда. Пожалуйста, используйте /start для начала работы с ботом.")
 
     def run(self):
+
+        img = ImageGen()
+
+        self.app.add_handler(img.handler())
+
         #self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.main_handler))
         self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
         self.app.add_handler(MessageHandler(filters.TEXT, self.message_handler))
+
         print("Бот запущен!")
         self.app.run_polling()

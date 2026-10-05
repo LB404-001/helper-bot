@@ -43,7 +43,7 @@ class Comfy():
                         #логика сборки прогреса
                         st = ""
                         for k in data["nodes"]:
-                            percent = (data["nodes"][k]["value"] / data["nodes"][k]["max"]) * 100
+                            percent = round((data["nodes"][k]["value"] / data["nodes"][k]["max"]) * 100)
                             st += f"{k}: {percent}% | {data["nodes"][k]["state"]}\n"
                         await on_progress(st)
                     continue
