@@ -8,9 +8,6 @@ MODEL, POSITIVE, NEGATIVE, CONFIRM = range(4)
 class ImageGen:
 
     def __init__(self):
-        self.prompt_positive = None
-        self.prompt_negative = None
-        self.model = None
         self.models = {
             "2": "novaAnimeXL_ilV180.safetensors",
             "1": "AnythingXL_xl.safetensors"
@@ -22,16 +19,19 @@ class ImageGen:
             InlineKeyboardButton("Аниме персонажи", callback_data="2")
         ]]
         await update.message.reply_text(f"Выберите модель", reply_markup=InlineKeyboardMarkup(keyboard))
-        self.prompt_positive = None
-        self.prompt_negative = None
-        self.model = None
+
+        context.user_data.pop("positive_prompt", None)
+        context.user_data.pop("negative_prompt", None)
+        context.user_data.pop("model", None)
+
         return MODEL
     
     async def get_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
 
-        self.model = self.models.get(query.data, None)
+        context.user_data["model"] = self.models.get(query.data, None)
+
         if self.model is None:
             await query.message.chat.send_message("Неизвестная модель")
             return ConversationHandler.END
@@ -39,12 +39,13 @@ class ImageGen:
         return POSITIVE
 
     async def get_positive(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.prompt_positive = update.message.text
+        context.user_data["positive_prompt"] = update.message.text
+
         await update.message.reply_text("Введите негативный промпт")
         return NEGATIVE
 
     async def get_negative(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.prompt_negative = update.message.text
+        context.user_data["negative_prompt"] = update.message.text
         await update.message.reply_text(f"Получены промпты:\nPositive:{self.prompt_positive}\nNegative:{self.prompt_negative}\nModel:{self.model}")
 
         keyboard = [[
@@ -59,10 +60,19 @@ class ImageGen:
         query = update.callback_query
         await query.answer()
 
+        positive = context.user_data.get("positive_prompt", None)
+        negative = context.user_data.get("negative_prompt", None)
+        model = context.user_data.get("model", None)
+
+        if positive is None or negative is None or model is None:
+            await query.message.chat.send_message("Часть данных пусты")
+            return ConversationHandler.END
+
         if query.data == "True":
             cmf = Comfy()
             msg = await query.message.chat.send_message("Отравка запроса...")
-            img = await cmf.base_scene(self.prompt_positive, self.prompt_negative, self.model, msg.edit_text)
+
+            img = await cmf.base_scene(positive, negative, model, msg.edit_text)
 
             if isinstance(img, bytes):
                 await query.message.chat.send_photo(photo=img)
