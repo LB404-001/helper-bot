@@ -32,7 +32,7 @@ class ImageGen:
 
         context.user_data["model"] = self.models.get(query.data, None)
 
-        if self.model is None:
+        if context.user_data["model"] is None:
             await query.message.chat.send_message("Неизвестная модель")
             return ConversationHandler.END
         await query.message.chat.send_message("Введите позитивный промпт")
@@ -46,7 +46,12 @@ class ImageGen:
 
     async def get_negative(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["negative_prompt"] = update.message.text
-        await update.message.reply_text(f"Получены промпты:\nPositive:{self.prompt_positive}\nNegative:{self.prompt_negative}\nModel:{self.model}")
+
+        positive = context.user_data.get("positive_prompt", None)
+        negative = context.user_data.get("negative_prompt", None)
+        model = context.user_data.get("model", None)
+
+        await update.message.reply_text(f"Получены промпты:\nPositive:{positive}\nNegative:{negative}\nModel:{model}")
 
         keyboard = [[
             InlineKeyboardButton("Да", callback_data="True"),
