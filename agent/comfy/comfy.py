@@ -12,10 +12,11 @@ class Comfy():
         self.port = port
         self.connection = f"http://{host}:{port}"
 
-    async def base_scene(self, positive_prompt: str, negative_prompt:str, on_progress=None):
+    async def base_scene(self, positive_prompt: str, negative_prompt:str, model: str, on_progress=None):
         schema: dict = json.load(open("/home/lb404/Documents/projects/helper/agent/comfy/workflows/base_scene.json", "r"))
         schema["6"]["inputs"]["text"] = positive_prompt
         schema["7"]["inputs"]["text"] = negative_prompt
+        schema["4"]["inputs"]["ckpt_name"] = model
         rnd = Random()
         schema["3"]["inputs"]["seed"] = rnd.randint(0, 999999999)
         uid = "123" #str(uuid.uuid4())

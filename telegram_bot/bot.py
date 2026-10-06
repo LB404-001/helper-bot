@@ -16,6 +16,7 @@ from telegram_bot.sessions import Sessions, RedisSessions
 from agent.comfy.comfy import Comfy
 
 from telegram_bot.conversations.image_gen import ImageGen
+from telegram_bot.conversations.auth import Login
 
 import logging
 
@@ -101,127 +102,10 @@ class Bot:
 
     #user management
 
-    async def login(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool | None:
-        status = context.user_data.get('status')
-        logger.info("Login initialized")
-
-        if status == AUTH_STATUS.AUTHORIZATION.value:
-            if len(update.message.text.split(' ')) < 2:
-                await update.message.reply_text("Введите и логин и пароль!")
-                return False
-            
-            login, password = update.message.text.split(' ')
-            id = self.auth.authenticate_user(login, password)
-            if id:
-                token = self.sessions.new_session(id)
-                if token is None:
-                    logger.error(f"token for user:{id} is none")
-                    return False
-                logger.info(f"initialized new session:{token} for user:{id}")
-                
-                context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
-                context.user_data['token'] = token
-                context.user_data['id'] = id
-                logger.info(f"User:{id} authenticated")
-
-                await self.remember_user(id, update, True)
-                await update.message.reply_text("Вы успешно вошли в систему!")
-
-                return True
-            
-            else:
-                logger.warning(f"User:{id} authentication failed")
-
-                await update.message.reply_text("Неверный логин или пароль.")
-
-                return False
-        
-        #try auto authorization (by tg)
-        await update.message.reply_text("Проверка авторизации...")
-
-        user_id = update.message.from_user.id
-        id = self.auth.authenticate_user_by_tg(telegram_id=user_id)
-
-        if id:
-            token = self.sessions.new_session(id)
-            if token is None:
-                logger.error(f"token for user:{id} is none")
-                return False
-            logger.info(f"initialized new session:{token} for user:{id}")
-            
-            context.user_data['status'] = AUTH_STATUS.AUTHORIZED.value
-            context.user_data['token'] = token
-            context.user_data['id'] = id
-            logger.info(f"User:{user_id} authenticated")
-
-            await update.message.reply_text("Вы успешно вошли в систему!")
-
-            return True
-        
-        else:
-            logger.warning(f"User:{user_id} tg authentication failed")
-            context.user_data['status'] = AUTH_STATUS.AUTHORIZATION.value
-            logger.debug(f"current user status:{context.user_data['status']}")
-
-            await update.message.reply_text("Ошибка авторизации. Пожалуйста, введите логин и пароль в формате: 'логин пароль'")
-        
-        return False
-
     async def remember_user(self, user_id: int, update: Update, value: bool = True):
         self.auth.remember_user(user_id, update.message.from_user.id, value)
         logger.info(f"User:{user_id} {f'remembered as tg user:{update.message.from_user.id}' if value else 'forgotten'}")
         await update.message.reply_text(f"Аккаунт {'запомнен' if value else 'забыт'}")
-
-    #chat management
-    async def new_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        status = context.user_data.get('status')
-        user_id = update.message.from_user.id
-
-        if not self.auth.get_authorization(Identifiers.TELEGRAM_ID, user_id):
-            logger.warning(f"Chat creation failed. TG User:{user_id} is not authenticated")
-            await update.message.reply_text("Вы должны быть авторизованы, чтобы создать новый чат.")
-            return False
-
-        if status == CHAT_STATUS.CREATING.value:
-            status = ""
-            title = update.message.text
-            res = self.chats.add_chat(title)
-            if res:
-                logger.info(f"Chat:{title} created by tg user:{user_id}")
-                update.message.reply_text("Чат создан")
-                return True
-            logger.error(f"Can't create Chat:{title} by tg user:{user_id}")
-            update.message.reply_text("Ошибка при создании чата")
-            return False
-
-        status = CHAT_STATUS.CREATING.value
-        logger.debug(f"Chat creation initialized by tg user:{user_id}")
-        await update.message.reply_text("Введите название нового чата:")
-        return 
-
-    #creating image
-    async def create_image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        status = context.user_data.get("status")
-        if status == IMG_STATUS.PROMPTING.value:
-            prompt = update.message.text
-            if prompt is None:
-                await update.message.reply_text("Пустой промпт! Введите позитивный промпт")
-            cmf = Comfy()
-            msg = await update.message.reply_text("Отравка запроса...")
-            img = await cmf.base_scene(prompt, "", msg.edit_text)
-            
-            context.user_data['status'] = ""
-
-            if isinstance(img, bytes):
-                await update.message.reply_photo(photo=img)
-                return True
-
-            await update.message.reply_text(img)
-            return False
-
-        context.user_data['status'] = IMG_STATUS.PROMPTING.value
-        await update.message.reply_text("Введите позитивный промпт")
-        return False
 
     #handlers
     async def command_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -238,7 +122,6 @@ class Bot:
         if command in ["login", "start"]:
             context.user_data['status'] = None
             context.user_data["scenario"] = SCENARIOS.LOGIN.value
-            await self.login(update, context)
             return False
 
         #protected
@@ -259,18 +142,12 @@ class Bot:
                 #     context.user_data["status"] = None
                 #     await self.create_image(update, context)
 
-                case "new_chat":
-                    context.user_data['status'] = ""
-                    await self.new_chat(update, context)
-
                 case _:
                     await update.message.reply_text(f"Неизвестная команда: {command}")
             return
 
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
-
-
 
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -298,12 +175,6 @@ class Bot:
             status = context.user_data.get("status")
             scenario = context.user_data.get("scenario")
             match scenario:
-                case SCENARIOS.LOGIN.value:
-                    await self.login(update, context)
-
-                case SCENARIOS.IMAGE_GEN.value:
-                    await self.create_image(update, context)
-
                 case _:
                     logger.error(f"Unknown scenario:{status} from user:{id}")
                     context.user_data["status"] = ""
@@ -315,32 +186,14 @@ class Bot:
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
 
-    def add_handler(self, handler):
-        self.app.add_handler(handler)
-
-        #commands
-        async def tg_remember(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await self.remember_user(update, value=True)
-        
-        async def tg_forget(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await self.remember_user(update, value=False)
-        
-        async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            context.user_data['status'] = ""
-            await self.login(update, context)
-        
-        async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            context.user_data['status'] = ""
-            await self.login(update, context)
-        
-        async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            await update.message.reply_text("Неизвестная команда. Пожалуйста, используйте /start для начала работы с ботом.")
 
     def run(self):
 
         img = ImageGen()
+        auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
 
         self.app.add_handler(img.handler())
+        self.app.add_handler(auth.handler())
 
         #self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.main_handler))
         self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
