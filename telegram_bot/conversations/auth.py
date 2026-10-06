@@ -21,6 +21,10 @@ class Login:
         self.logger.info("Login conversation initialized")
         self.password = None
         self.login = None
+
+        context.user_data.pop("login", None)
+        context.user_data.pop("password", None)
+
         await update.message.reply_text("Проверка авторизации...")
 
         user_id = update.message.from_user.id
@@ -52,20 +56,26 @@ class Login:
 
     async def get_login(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.login = update.message.text
+
+        context.user_data["login"] = update.message.text
+
         await update.message.reply_text("Введите пароль")
         return PASSWORD
 
     async def get_password(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.password = update.message.text
+
+        login = context.user_data.get("login", None)
+        password = update.message.text
         
-        if self.password is None or self.login is None:
+        if password is None or login is None:
             await update.message.reply_text("Логин или пароль пусты")
-            self.logger.error(f"Empty login or password: {self.login}|{self.password}")
+            self.logger.error(f"Empty login or password: {login}|{password}")
             return ConversationHandler.END
         
-        await update.message.reply_text(f"Получены login:{self.login} password:{self.password}")
+        await update.message.reply_text(f"Получены login:{login} password:{password}")
         #authentication
-        id = self.auth.authenticate_user(self.login, self.password)
+        id = self.auth.authenticate_user(login, password)
         if id: #creating session
             token = self.sessions.new_session(id)
             if token is None:
