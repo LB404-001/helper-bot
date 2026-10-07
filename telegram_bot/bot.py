@@ -91,6 +91,7 @@ class Bot:
             {"command": "register", "description": "Зарегистрироваться в системе"},
             {"command": "login", "description": "Войти в систему"},
             {"command": "create_image", "description": "Создать изображение"},
+            {"command": "cancel", "description": "Отмена"},
         ]
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
 
