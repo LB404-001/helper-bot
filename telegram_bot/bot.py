@@ -79,16 +79,17 @@ class Bot:
         self.token = token
         self.app = Application.builder().token(self.token).build()
         self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
-        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS))#Sessions(self.DB)
-        self.auth = Authorization(self.DB)
+        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS), logger)#Sessions(self.DB)
+        self.auth = Authorization(self.DB, logger)
         self.chats = Chats(self.DB)
+
+        response = requests.post(f"https://api.telegram.org/bot{TOKEN}/deleteMyCommands")
 
         commands = [
             {"command": "remember", "description": "Запомнить меня в системе"},
             {"command": "start", "description": "Начать работу с ботом"},
             {"command": "register", "description": "Зарегистрироваться в системе"},
             {"command": "login", "description": "Войти в систему"},
-            {"command": "new_chat", "description": "Начать новый чат"},
             {"command": "create_image", "description": "Создать изображение"},
         ]
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
@@ -191,7 +192,7 @@ class Bot:
 
     def run(self):
 
-        img = ImageGen()
+        img = ImageGen(sessions=self.sessions, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
         register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
         remember = Remember(sessions=self.sessions, auth=self.auth, logger=logger)

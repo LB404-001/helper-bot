@@ -2,10 +2,12 @@ import psycopg
 import enum
 import hashlib
 import secrets
+from logging import Logger
 
 class Sessions:
-    def __init__(self, db_connection: psycopg.Connection):
+    def __init__(self, db_connection: psycopg.Connection, logger: Logger):
         self.db_connection = db_connection
+        self.logger = logger
     
     #create new session
     def new_session(self, user_id:int) -> str | None:
@@ -35,8 +37,9 @@ class Sessions:
 
 import redis
 class RedisSessions:
-    def __init__(self, redis_connection: redis.Redis):
+    def __init__(self, redis_connection: redis.Redis, logger: Logger):
         self.redis: redis.Redis = redis_connection
+        self.logger = logger
 
     def new_session(self, id:int) -> str | None:
         #id-token

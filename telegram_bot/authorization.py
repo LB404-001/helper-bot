@@ -1,15 +1,17 @@
 import psycopg
 import enum
 from argon2 import PasswordHasher
+from logging import Logger
 
 class Identifiers(enum.Enum):
     ID = "id"
     TELEGRAM_ID = "telegram_id"
 
 class Authorization:
-    def __init__(self, db_connection: psycopg.Connection):
+    def __init__(self, db_connection: psycopg.Connection, logger: Logger):
         self.db_connection = db_connection
         self.ph = PasswordHasher()
+        self.logger = logger
 
     def authenticate_user(self, login: str = None, password: str = None) -> int | bool:
         #auth by login

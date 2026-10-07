@@ -3,20 +3,27 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
 from agent.comfy.comfy import Comfy
 
+from telegram_bot.decorators.require_session import require_session
+
+from logging import Logger
+
 MODEL, POSITIVE, NEGATIVE, CONFIRM = range(4)
 
 class ImageGen:
 
-    def __init__(self):
+    def __init__(self, sessions, logger: Logger):
         self.models = {
             "2": "novaAnimeXL_ilV180.safetensors",
             "1": "AnythingXL_xl.safetensors"
         }
+        self.logger = logger
+        self.sessions = sessions
 
+    @require_session
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[
-            InlineKeyboardButton("Общая", callback_data="1"),
-            InlineKeyboardButton("Аниме персонажи", callback_data="2")
+            InlineKeyboardButton("Общая", callback_data="model:1"),
+            InlineKeyboardButton("Аниме персонажи", callback_data="model:2")
         ]]
         await update.message.reply_text(f"Выберите модель", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -26,11 +33,12 @@ class ImageGen:
 
         return MODEL
     
+    @require_session
     async def get_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
 
-        context.user_data["model"] = self.models.get(query.data, None)
+        context.user_data["model"] = self.models.get(query.data.replace("model:", ""), None)
 
         if context.user_data["model"] is None:
             await query.message.chat.send_message("Неизвестная модель")
@@ -38,12 +46,14 @@ class ImageGen:
         await query.message.chat.send_message("Введите позитивный промпт")
         return POSITIVE
 
+    @require_session
     async def get_positive(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["positive_prompt"] = update.message.text
 
         await update.message.reply_text("Введите негативный промпт")
         return NEGATIVE
 
+    @require_session
     async def get_negative(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["negative_prompt"] = update.message.text
 
@@ -54,13 +64,14 @@ class ImageGen:
         await update.message.reply_text(f"Получены промпты:\nPositive:{positive}\nNegative:{negative}\nModel:{model}")
 
         keyboard = [[
-            InlineKeyboardButton("Да", callback_data="True"),
-            InlineKeyboardButton("Нет", callback_data="False")
+            InlineKeyboardButton("Да", callback_data="confirm:True"),
+            InlineKeyboardButton("Нет", callback_data="confirm:False")
         ]]
 
         await update.message.reply_text("Сгенерировать?", reply_markup=InlineKeyboardMarkup(keyboard))
         return CONFIRM
 
+    @require_session
     async def confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -73,7 +84,7 @@ class ImageGen:
             await query.message.chat.send_message("Часть данных пусты")
             return ConversationHandler.END
 
-        if query.data == "True":
+        if query.data == "confirm:True":
             cmf = Comfy()
             msg = await query.message.chat.send_message("Отравка запроса...")
 
@@ -86,15 +97,20 @@ class ImageGen:
             await query.message.chat.send_message(img)
         await query.message.chat.send_message("Неизвестная ошибка")
         return ConversationHandler.END
+
+    async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.effective_chat.send_message("Отменено")
+        return ConversationHandler.END
     
     def handler(self):
         return ConversationHandler(
             entry_points=[CommandHandler("create_image", self.start)], 
             states={
-                MODEL: [CallbackQueryHandler(self.get_model)],
+                MODEL: [CallbackQueryHandler(self.get_model, pattern=r"^model:")],
                 POSITIVE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_positive)],
                 NEGATIVE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_negative)],
-                CONFIRM: [CallbackQueryHandler(self.confirm)],
+                CONFIRM: [CallbackQueryHandler(self.confirm, pattern=r"^confirm:")],
             }, 
-            fallbacks=[CommandHandler("confirm", self.confirm)]
+            fallbacks=[CommandHandler("cancel", self.cancel)], 
+            allow_reentry=True
         )

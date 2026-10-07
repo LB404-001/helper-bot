@@ -5,6 +5,7 @@ from logging import Logger
 
 from telegram_bot.authorization import Authorization, Identifiers
 from telegram_bot.sessions import Sessions, RedisSessions
+from telegram_bot.decorators.require_session import require_session
 
 LOGIN, PASSWORD = range(2)
 
@@ -73,7 +74,11 @@ class Register:
             await update.message.reply_text("Неверный логин или пароль.")
 
         return ConversationHandler.END
-    
+
+    async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.effective_chat.send_message("Отменено")
+        return ConversationHandler.END
+
     def handler(self):
         return ConversationHandler(
             entry_points=[CommandHandler("register", self.start)], 
@@ -81,5 +86,6 @@ class Register:
                 LOGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_login)],
                 PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_password)],
             }, 
-            fallbacks=[CommandHandler("auth", self.get_password)]
+            fallbacks=[CommandHandler("cancel", self.cancel)], 
+            allow_reentry=True
         )
