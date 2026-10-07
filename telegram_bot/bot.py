@@ -17,6 +17,7 @@ from agent.comfy.comfy import Comfy
 
 from telegram_bot.conversations.image_gen import ImageGen
 from telegram_bot.conversations.auth import Login
+from telegram_bot.conversations.register import Register
 
 import logging
 
@@ -85,6 +86,7 @@ class Bot:
             {"command": "tg_remember", "description": "Запомнить меня в системе"},
             {"command": "tg_forget", "description": "Забыть меня из системы"},
             {"command": "start", "description": "Начать работу с ботом"},
+            {"command": "register", "description": "Зарегистрироваться в системе"},
             {"command": "login", "description": "Войти в систему"},
             {"command": "new_chat", "description": "Начать новый чат"},
             {"command": "create_image", "description": "Создать изображение"},
@@ -191,13 +193,15 @@ class Bot:
 
         img = ImageGen()
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
+        register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
 
         self.app.add_handler(img.handler())
         self.app.add_handler(auth.handler())
+        self.app.add_handler(register.handler())
 
         #self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.main_handler))
-        self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
-        self.app.add_handler(MessageHandler(filters.TEXT, self.message_handler))
+        #self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
+        #self.app.add_handler(MessageHandler(filters.TEXT, self.message_handler))
 
         print("Бот запущен!")
         self.app.run_polling()

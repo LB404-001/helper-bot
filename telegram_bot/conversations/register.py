@@ -8,65 +8,41 @@ from telegram_bot.sessions import Sessions, RedisSessions
 
 LOGIN, PASSWORD = range(2)
 
-class Login:
+class Register:
 
     def __init__(self, sessions: RedisSessions, auth: Authorization, logger: Logger):
         self.logger = logger
         self.auth = auth
         self.sessions = sessions
-        self.password = None
-        self.login = None
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.logger.info("Login conversation initialized")
-        self.password = None
-        self.login = None
+        self.logger.info("Register conversation initialized")
 
         context.user_data.pop("login", None)
         context.user_data.pop("password", None)
 
-        await update.message.reply_text("Проверка авторизации...")
-
-        user_id = update.message.from_user.id
-        self.logger.info("Truing authenticate user by tg")
-        id = self.auth.authenticate_user_by_tg(telegram_id=user_id)
-
-        if id:
-            token = self.sessions.new_session(id)
-            if token is None:
-                self.logger.error(f"token for user:{id} is none")
-                return False
-            self.logger.info(f"initialized new session:{token} for user:{id}")
-            
-            context.user_data['token'] = token
-            context.user_data['id'] = id
-            self.logger.info(f"User:{user_id} authenticated")
-
-            await update.message.reply_text("Вы успешно вошли в систему!")
-
-            return ConversationHandler.END
-        
-        else:
-            self.logger.warning(f"User:{user_id} tg authentication failed")
-
-            await update.message.reply_text("Ошибка авторизации.")
-            await update.message.reply_text("Введите логин")
+        await update.message.reply_text("Введите логин")
         
         return LOGIN
 
     async def get_login(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.login = update.message.text
+        login = update.message.text
 
-        context.user_data["login"] = update.message.text
+        context.user_data["login"] = login
+
+        exist = self.auth.check_user_exist(login)
+        if exist:
+            await update.message.reply_text("Логин занят")
+            await update.message.reply_text("Введите логин")
+            return LOGIN
 
         await update.message.reply_text("Введите пароль")
         return PASSWORD
 
     async def get_password(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.password = update.message.text
+        password = update.message.text
 
         login = context.user_data.get("login", None)
-        password = update.message.text
         
         if password is None or login is None:
             await update.message.reply_text("Логин или пароль пусты")
@@ -74,7 +50,9 @@ class Login:
             return ConversationHandler.END
         
         await update.message.reply_text(f"Получены login:{login} password:{password}")
-        #authentication
+        
+        self.auth.register_user(login, password)
+
         id = self.auth.authenticate_user(login, password)
         if id: #creating session
             token = self.sessions.new_session(id)
@@ -98,7 +76,7 @@ class Login:
     
     def handler(self):
         return ConversationHandler(
-            entry_points=[CommandHandler("login", self.start)], 
+            entry_points=[CommandHandler("register", self.start)], 
             states={
                 LOGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_login)],
                 PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_password)],

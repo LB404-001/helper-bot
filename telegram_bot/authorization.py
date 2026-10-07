@@ -29,6 +29,39 @@ class Authorization:
         
         return False
 
+    def check_user_exist(self, login: str) -> bool:
+
+        with self.db_connection.cursor() as cursor:
+            #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
+            cursor.execute("SELECT id FROM users WHERE login = %s", (login,))
+            res = cursor.fetchone()
+            if res is not None:
+                return True
+
+        return False
+
+    def register_user(self, login: str = None, password: str = None) -> bool:
+        #auth by login
+        if (login is None) or (password is None):
+            return False
+        
+        ad = False
+
+        with self.db_connection.cursor() as cursor:
+            #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
+            cursor.execute("SELECT id FROM users WHERE login = %s", (login,))
+            res = cursor.fetchone()
+            if res is None:
+                passwd = self.ph.hash(password)
+                cursor.execute("INSERT INTO users (login, password) VALUES (%s, %s)", (login, passwd))
+                ad = cursor.rowcount > 0
+        
+        if ad:
+            self.db_connection.commit()
+            return True
+
+        return False
+
     def authenticate_user_by_tg(self, telegram_id: int) -> int | bool:
         with self.db_connection.cursor() as cursor:
             cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
