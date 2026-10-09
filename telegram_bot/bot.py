@@ -49,6 +49,7 @@ logger.addHandler(log_handler)
 SETTINGS = json.load(open("telegram_bot/local_settings.json", "r"))
 
 TOKEN = SETTINGS["token"]
+WEBHOOK_SETTINGS = ["webhook_settings"]
 DB_CONNECTION_SETTINGS = SETTINGS["db_connection_settings"]
 REDIS_CONNECTION_SETTINGS = SETTINGS["redis_connection_settings"]
 
@@ -77,7 +78,6 @@ class Bot:
     def __init__(self, core: Core, token=TOKEN):
         self.core = core
         self.token = token
-        self.app = Application.builder().token(self.token).build()
         self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
         self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS), logger)#Sessions(self.DB)
         self.auth = Authorization(self.DB, logger)
@@ -189,23 +189,32 @@ class Bot:
 
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
+    
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text("Привет!")
 
-
-    def run(self):
+    def run(self, mode: str):
 
         img = ImageGen(sessions=self.sessions, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
         register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
         remember = Remember(sessions=self.sessions, auth=self.auth, logger=logger)
 
+        self.app = Application.builder().token(self.token).build()
+
         self.app.add_handler(img.handler())
         self.app.add_handler(auth.handler())
         self.app.add_handler(register.handler())
         self.app.add_handler(remember.handler())
 
-        #self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.main_handler))
-        #self.app.add_handler(CommandHandler(["tg_remember", "tg_forget", "start", "login", "create_image"], self.command_handler))
-        #self.app.add_handler(MessageHandler(filters.TEXT, self.message_handler))
+        self.app.add_handler(CommandHandler("start", self.start))
 
+        match mode:
+            case "webhook":
+                self.app.run_webhook(**WEBHOOK_SETTINGS)
+            case "polling":
+                self.app.run_polling()
+            case _ :
+                print("unknown mode")
+        
         print("Бот запущен!")
-        self.app.run_polling()
