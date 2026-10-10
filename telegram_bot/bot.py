@@ -75,25 +75,13 @@ class SCENARIOS(enum.Enum):
     IMAGE_GEN = "image_gen"
 
 class Bot:
-    def __init__(self, core: Core, token=TOKEN):
-        self.core = core
+    def __init__(self, token=TOKEN):
         self.token = token
-        self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
-        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS), logger)#Sessions(self.DB)
-        self.auth = Authorization(self.DB, logger)
-        self.chats = Chats(self.DB)
-
-        response = requests.post(f"https://api.telegram.org/bot{TOKEN}/deleteMyCommands")
-
-        commands = [
-            {"command": "remember", "description": "Запомнить меня в системе"},
-            {"command": "start", "description": "Начать работу с ботом"},
-            {"command": "register", "description": "Зарегистрироваться в системе"},
-            {"command": "login", "description": "Войти в систему"},
-            {"command": "create_image", "description": "Создать изображение"},
-            {"command": "cancel", "description": "Отмена"},
-        ]
-        response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
+        self.DB: psycopg.Connection
+        self.sessions: RedisSessions
+        self.auth: Authorization
+        self.chats: Chats
+        self.app = Application.builder().token(self.token).build()
 
     def db_connect(self):
         return psycopg.connect(**DB_CONNECTION_SETTINGS)
@@ -140,11 +128,6 @@ class Bot:
 
                 case "tg_forget":
                     await self.remember_user(id, update, value=False)
-                
-                # case "create_image":
-                #     context.user_data["scenario"] = SCENARIOS.IMAGE_GEN.value
-                #     context.user_data["status"] = None
-                #     await self.create_image(update, context)
 
                 case _:
                     await update.message.reply_text(f"Неизвестная команда: {command}")
@@ -153,9 +136,8 @@ class Bot:
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
 
-
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-            response = "resp"#self.core.process_message(update.message.text)
+            response = "resp"
             await update.message.reply_text(response)
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -193,14 +175,17 @@ class Bot:
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Привет!")
 
-    def run(self, mode: str):
+    def build(self):
+
+        self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
+        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS), logger)
+        self.auth = Authorization(self.DB, logger)
+        self.chats = Chats(self.DB)
 
         img = ImageGen(sessions=self.sessions, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
         register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
         remember = Remember(sessions=self.sessions, auth=self.auth, logger=logger)
-
-        self.app = Application.builder().token(self.token).build()
 
         self.app.add_handler(img.handler())
         self.app.add_handler(auth.handler())
@@ -208,6 +193,21 @@ class Bot:
         self.app.add_handler(remember.handler())
 
         self.app.add_handler(CommandHandler("start", self.start))
+
+    def run(self, mode: str):
+
+        self.build()
+
+        response = requests.post(f"https://api.telegram.org/bot{TOKEN}/deleteMyCommands")
+        commands = [
+            {"command": "remember", "description": "Запомнить меня в системе"},
+            {"command": "start", "description": "Начать работу с ботом"},
+            {"command": "register", "description": "Зарегистрироваться в системе"},
+            {"command": "login", "description": "Войти в систему"},
+            {"command": "create_image", "description": "Создать изображение"},
+            {"command": "cancel", "description": "Отмена"},
+        ]
+        response = requests.post(f"https://api.telegram.org/bot{TOKEN}/setMyCommands", json={"commands": commands})
 
         match mode:
             case "webhook":
