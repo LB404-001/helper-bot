@@ -1,5 +1,5 @@
 import psycopg
-import enum
+import enum, asyncio
 import hashlib
 import secrets
 from logging import Logger
@@ -40,6 +40,12 @@ class RedisSessions:
     def __init__(self, redis_connection: redis.Redis, logger: Logger):
         self.redis: redis.Redis = redis_connection
         self.logger = logger
+
+    async def ping(self):
+        try:
+            return bool(await asyncio.wait_for(self.redis.ping(), 5))
+        except Exception:
+            return False
 
     def new_session(self, id:int) -> str | None:
         #id-token

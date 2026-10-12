@@ -61,25 +61,6 @@ class Register:
         self.logger.info(f"user registered. login:{login}")
         await update.message.reply_text("Вы успешно зарегистрированы")
 
-        # id = self.auth.authenticate_user(login, password)
-        # if id: #creating session
-        #     token = self.sessions.new_session(id)
-        #     if token is None:
-        #         self.logger.error(f"token for user:{id} is none")
-        #         return False
-        #     self.logger.info(f"initialized new session:{token} for user:{id}")
-            
-        #     context.user_data['token'] = token
-        #     context.user_data['id'] = id
-        #     self.logger.info(f"User:{id} authenticated")
-
-        #     await update.message.reply_text("Вы успешно вошли в систему!")
-        
-        # else:
-        #     self.logger.warning(f"User:{id} authentication failed")
-
-        #     await update.message.reply_text("Неверный логин или пароль.")
-
         return ConversationHandler.END
 
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
