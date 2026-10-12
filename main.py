@@ -7,4 +7,4 @@ llm = LLM(model_name="qwen3:8b")
 core = Core(llm=llm)
 bot = Bot()
 
-bot.run()
+bot.run("webhook")

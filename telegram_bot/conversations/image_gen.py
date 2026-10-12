@@ -112,6 +112,5 @@ class ImageGen:
                 CONFIRM: [CallbackQueryHandler(self.confirm, pattern=r"^confirm:")],
             }, 
             fallbacks=[CommandHandler("cancel", self.cancel)], 
-            allow_reentry=True,
-            per_message=True
+            allow_reentry=True
         )

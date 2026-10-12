@@ -22,6 +22,15 @@ from telegram_bot.conversations.remember_user import Remember
 
 import logging
 
+from warnings import filterwarnings
+from telegram.warnings import PTBUserWarning
+
+filterwarnings(
+    action="ignore",
+    message=r".*CallbackQueryHandler",
+    category=PTBUserWarning,
+)
+
 log_level_colors = {
     logging.INFO: "\033[32m",
     logging.WARNING: "\033[33m",
@@ -49,7 +58,7 @@ logger.addHandler(log_handler)
 SETTINGS = json.load(open("telegram_bot/local_settings.json", "r"))
 
 TOKEN = SETTINGS["token"]
-WEBHOOK_SETTINGS = ["webhook_settings"]
+WEBHOOK_SETTINGS = SETTINGS["webhook_settings"]
 DB_CONNECTION_SETTINGS = SETTINGS["db_connection_settings"]
 REDIS_CONNECTION_SETTINGS = SETTINGS["redis_connection_settings"]
 
@@ -175,6 +184,21 @@ class Bot:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Привет!")
 
+    async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        error = context.error
+
+        logger.exception(f"Unhandled error:{error}", exc_info=error)
+        text = "Произошла ошибка, мы уже разбираемся."
+
+        if isinstance(error, (redis.RedisError, ConnectionError, TimeoutError)):
+            text = "Сервис временно недоступен, попробуйте через минуту."
+        
+        if update and getattr(update, "effective_message", None):
+            try:
+                await update.effective_message.reply_text(text)
+            except Exception:
+                pass
+
     def build(self):
 
         self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
@@ -194,6 +218,8 @@ class Bot:
 
         self.app.add_handler(CommandHandler("start", self.start))
 
+        self.app.add_error_handler(self.error_handler)
+
     def run(self, mode: str):
 
         self.build()
@@ -211,10 +237,11 @@ class Bot:
 
         match mode:
             case "webhook":
+                print("Бот запущен!")
                 self.app.run_webhook(**WEBHOOK_SETTINGS)
             case "polling":
+                print("Бот запущен!")
                 self.app.run_polling()
             case _ :
                 print("unknown mode")
         
-        print("Бот запущен!")
