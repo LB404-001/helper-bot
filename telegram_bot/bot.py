@@ -172,7 +172,7 @@ class Bot:
         await update.message.reply_text("Неизвестный аккаут, требуется аутентификация. Используйте /login")
         return False
     
-    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Привет!")
 
     def build(self):
