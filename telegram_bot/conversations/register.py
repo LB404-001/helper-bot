@@ -50,28 +50,35 @@ class Register:
             self.logger.error(f"Empty login or password: {login}|{password}")
             return ConversationHandler.END
         
-        await update.message.reply_text(f"Получены login:{login} password:{password}")
+        #await update.message.reply_text(f"Получены login:{login} password:{password}")
         
-        self.auth.register_user(login, password)
+        success = self.auth.register_user(login, password)
+        if not success:
+            self.logger.info(f"Registration error. login:{login}")
+            await update.message.reply_text("Ошибка при регистрации, попробуйте позднее")
+            return ConversationHandler.END
 
-        id = self.auth.authenticate_user(login, password)
-        if id: #creating session
-            token = self.sessions.new_session(id)
-            if token is None:
-                self.logger.error(f"token for user:{id} is none")
-                return False
-            self.logger.info(f"initialized new session:{token} for user:{id}")
+        self.logger.info(f"user registered. login:{login}")
+        await update.message.reply_text("Вы успешно зарегистрированы")
+
+        # id = self.auth.authenticate_user(login, password)
+        # if id: #creating session
+        #     token = self.sessions.new_session(id)
+        #     if token is None:
+        #         self.logger.error(f"token for user:{id} is none")
+        #         return False
+        #     self.logger.info(f"initialized new session:{token} for user:{id}")
             
-            context.user_data['token'] = token
-            context.user_data['id'] = id
-            self.logger.info(f"User:{id} authenticated")
+        #     context.user_data['token'] = token
+        #     context.user_data['id'] = id
+        #     self.logger.info(f"User:{id} authenticated")
 
-            await update.message.reply_text("Вы успешно вошли в систему!")
+        #     await update.message.reply_text("Вы успешно вошли в систему!")
         
-        else:
-            self.logger.warning(f"User:{id} authentication failed")
+        # else:
+        #     self.logger.warning(f"User:{id} authentication failed")
 
-            await update.message.reply_text("Неверный логин или пароль.")
+        #     await update.message.reply_text("Неверный логин или пароль.")
 
         return ConversationHandler.END
 

@@ -187,7 +187,7 @@ class Bot:
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         error = context.error
 
-        logger.exception(f"Unhandled error:{error}", exc_info=error)
+        logger.error(f"Unhandled error:{error}")
         text = "Произошла ошибка, мы уже разбираемся."
 
         if isinstance(error, (redis.RedisError, ConnectionError, TimeoutError)):
