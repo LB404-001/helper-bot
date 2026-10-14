@@ -49,6 +49,11 @@ class UserSim:
         self.calls = []                                 # все вызовы API за последний шаг
 
     @property
+    def data(self):
+        """user_data этого пользователя: то, что хендлеры видят как context.user_data."""
+        return self.app.user_data[self.user_id]
+
+    @property
     def _user(self):
         return {"id": self.user_id, "is_bot": False, "first_name": "T"}
 
@@ -125,3 +130,4 @@ async def bot(fake, monkeypatch):
 @pytest.fixture
 def user(bot, fake):
     return UserSim(bot, fake)
+

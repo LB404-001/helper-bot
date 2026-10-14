@@ -73,8 +73,7 @@ class Login:
             await update.message.reply_text("Логин или пароль пусты")
             self.logger.error(f"Empty login or password: {login}|{password}")
             return ConversationHandler.END
-        
-        await update.message.reply_text(f"Получены login:{login} password:{password}")
+
         #authentication
         id = self.auth.authenticate_user(login, password)
         if id: #creating session
