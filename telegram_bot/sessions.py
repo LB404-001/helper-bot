@@ -4,6 +4,9 @@ import hashlib
 import secrets
 from logging import Logger
 
+import redis.asyncio
+import redis.asyncio
+
 class Sessions:
     def __init__(self, db_connection: psycopg.Connection, logger: Logger):
         self.db_connection = db_connection
@@ -35,10 +38,10 @@ class Sessions:
             return res[0] == token
         return False
 
-import redis
+import redis.asyncio
 class RedisSessions:
-    def __init__(self, redis_connection: redis.Redis, logger: Logger):
-        self.redis: redis.Redis = redis_connection
+    def __init__(self, redis_connection: redis.asyncio.Redis, logger: Logger):
+        self.redis: redis.asyncio.Redis = redis_connection
         self.logger = logger
 
     async def ping(self):
@@ -47,23 +50,23 @@ class RedisSessions:
         except Exception:
             return False
 
-    def new_session(self, id:int) -> str | None:
+    async def new_session(self, id:int) -> str | None:
         #id-token
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        self.redis.set(f"session:{id}", token_hash, ex=3600)
+        await self.redis.set(f"session:{id}", token_hash, ex=3600)
         return token
 
-    def check_session(self, id: int, token:str) -> bool:
+    async def check_session(self, id: int, token:str) -> bool:
         #get token by id
         if id is None or token is None:
             return False
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        tk = self.redis.get(f"session:{id}")
+        tk = await self.redis.get(f"session:{id}")
 
         #expire session
         if tk == token_hash:
-            self.redis.expire(f"session:{id}", 3600)
+            await self.redis.expire(f"session:{id}", 3600)
             return True
 
         return False

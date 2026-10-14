@@ -33,7 +33,7 @@ class Login:
         id = self.auth.authenticate_user_by_tg(telegram_id=user_id)
 
         if id:
-            token = self.sessions.new_session(id)
+            token = await self.sessions.new_session(id)
             if token is None:
                 self.logger.error(f"token for user:{id} is none")
                 return False
@@ -77,7 +77,7 @@ class Login:
         #authentication
         id = self.auth.authenticate_user(login, password)
         if id: #creating session
-            token = self.sessions.new_session(id)
+            token = await self.sessions.new_session(id)
             if token is None:
                 self.logger.error(f"token for user:{id} is none")
                 return False

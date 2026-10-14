@@ -12,7 +12,7 @@ def require_session(func):
         id = context.user_data.get("id", None)
 
         self.logger.debug(f"Session checking for token:{token} and user: {id} from tg user:{user_id}")
-        session_status = self.sessions.check_session(id, token)
+        session_status = await self.sessions.check_session(id, token)
         self.logger.debug(f"Session status:{session_status} for tg user:{user_id}")
 
         if session_status:

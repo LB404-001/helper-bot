@@ -1,5 +1,6 @@
 from turtle import update
 from unittest import case
+import redis.asyncio
 import requests
 
 from telegram import Update
@@ -202,7 +203,7 @@ class Bot:
     def build(self):
 
         self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
-        self.sessions = RedisSessions(redis.Redis(**REDIS_CONNECTION_SETTINGS), logger)
+        self.sessions = RedisSessions(redis.asyncio.Redis(**REDIS_CONNECTION_SETTINGS), logger)
         self.auth = Authorization(self.DB, logger)
         self.chats = Chats(self.DB)
 
