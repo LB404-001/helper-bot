@@ -91,7 +91,7 @@ class Bot:
         self.sessions: RedisSessions
         self.auth: Authorization
         self.chats: Chats
-        self.app = Application.builder().token(self.token).build()
+        self.app = Application.builder().token(self.token).concurrent_updates(1000).build()
 
     def db_connect(self):
         return psycopg.connect(**DB_CONNECTION_SETTINGS)
