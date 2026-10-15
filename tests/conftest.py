@@ -118,12 +118,9 @@ class UserSim:
 def fake(): return FakeRequest()
 
 @pytest_asyncio.fixture
-async def bot(fake, monkeypatch):
-    #monkeypatch.setattr("psycopg.connect", lambda **kw: MagicMock())
-    #monkeypatch.setattr("redis.Redis", lambda **kw: fakeredis.FakeRedis(**kw))
+async def bot(fake):
 
     bot = Bot()
-    #bot.app = Application.builder().token(bot.token).request(fake).build()
     bot.app = (Application.builder()
                     .token(bot.token)
                     .concurrent_updates(1000)

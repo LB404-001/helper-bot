@@ -22,7 +22,7 @@ class Authorization:
             user=user, 
             database=dbname, 
             command_timeout=60, 
-            min_size=1, 
+            min_size=10, 
             max_size=20
             )
     
