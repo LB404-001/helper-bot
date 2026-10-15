@@ -91,16 +91,12 @@ class Bot:
         self.sessions: RedisSessions
         self.auth: Authorization
         self.chats: Chats
-        self.app = Application.builder().token(self.token).concurrent_updates(1000).build()
-
-    def db_connect(self):
-        return psycopg.connect(**DB_CONNECTION_SETTINGS)
-
-    def db_disconnect(self, connection: psycopg.Connection = None):
-        if connection:
-            connection.close()
-        else:
-            self.DB.close()
+        self.app = (Application.builder()
+                    .token(self.token)
+                    .concurrent_updates(1000)
+                    .post_init(self.post_init)
+                    .post_shutdown(self.post_shutdown)
+                    .build())
 
     #user management
 
@@ -200,12 +196,17 @@ class Bot:
             except Exception:
                 pass
 
-    def build(self):
+    async def post_init(self, app: Application):
+        self.auth.connect()
+    
+    async def post_shutdown(self, app: Application):
+        self.auth.disconnect()
 
-        self.DB = psycopg.connect(**DB_CONNECTION_SETTINGS)
+    async def build(self):
+
         self.sessions = RedisSessions(redis.asyncio.Redis(**REDIS_CONNECTION_SETTINGS), logger)
-        self.auth = Authorization(self.DB, logger)
-        self.chats = Chats(self.DB)
+        self.auth = Authorization(**DB_CONNECTION_SETTINGS, logger=logger)
+        await self.auth.connect(**DB_CONNECTION_SETTINGS)
 
         img = ImageGen(sessions=self.sessions, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
@@ -221,9 +222,9 @@ class Bot:
 
         self.app.add_error_handler(self.error_handler)
 
-    def run(self, mode: str):
+    async def run(self, mode: str):
 
-        self.build()
+        await self.build()
 
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/deleteMyCommands")
         commands = [

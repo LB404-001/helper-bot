@@ -123,9 +123,16 @@ async def bot(fake, monkeypatch):
     #monkeypatch.setattr("redis.Redis", lambda **kw: fakeredis.FakeRedis(**kw))
 
     bot = Bot()
-    bot.app = Application.builder().token(bot.token).request(fake).build()
+    #bot.app = Application.builder().token(bot.token).request(fake).build()
+    bot.app = (Application.builder()
+                    .token(bot.token)
+                    .concurrent_updates(1000)
+                    .post_init(bot.post_init)
+                    .request(fake)
+                    .post_shutdown(bot.post_shutdown)
+                    .build())
 
-    bot.build()
+    await bot.build()
 
     bot.errors = []
     async def on_error(update, context):
@@ -135,7 +142,6 @@ async def bot(fake, monkeypatch):
     await bot.app.initialize()
     yield bot
     await bot.app.shutdown()
-    bot.db_disconnect()
 
 @pytest.fixture
 def user(bot, fake):

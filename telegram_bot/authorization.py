@@ -1,4 +1,5 @@
-import psycopg
+from click import command
+import psycopg, asyncpg
 import enum
 from argon2 import PasswordHasher
 from logging import Logger
@@ -8,106 +9,106 @@ class Identifiers(enum.Enum):
     TELEGRAM_ID = "telegram_id"
 
 class Authorization:
-    def __init__(self, db_connection: psycopg.Connection, logger: Logger):
-        self.db_connection = db_connection
+    def __init__(self, host, port, dbname, user, password, logger: Logger):
+        self.db_connection = psycopg.connect(host=host, port=port, dbname=dbname, user=user, password=password)
         self.ph = PasswordHasher()
         self.logger = logger
+    
+    async def connect(self, host, port, dbname, user, password):
+        self.pool = await asyncpg.create_pool(
+            host=host, 
+            port=port, 
+            password=password, 
+            user=user, 
+            database=dbname, 
+            command_timeout=60, 
+            min_size=1, 
+            max_size=20
+            )
+    
+    async def disconnect(self):
+        if self.pool is not None:
+            await self.pool.close()
+            self.pool = None
 
-    def authenticate_user(self, login: str = None, password: str = None) -> int | bool:
+    async def authenticate_user(self, login: str = None, password: str = None) -> int | bool:
         #auth by login
         if (login is None) or (password is None):
             return False
         
-        with self.db_connection.cursor() as cursor:
-            #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
-            cursor.execute("SELECT id, password FROM users WHERE login = %s", (login,))
-            res = cursor.fetchone()
-            if res is None:
-                return False
-            id, pwd = res
+        async with self.pool.acquire() as conn:
+                #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
+                res = await conn.fetchrow("SELECT id, password FROM users WHERE login = $1", (login))
+                if res is None:
+                    return False
+                id, pwd = res
 
-            if self.ph.verify(pwd, password):
-                return id
+                if self.ph.verify(pwd, password):
+                    return id
         
         return False
 
-    def check_user_exist(self, login: str) -> bool:
+    async def check_user_exist(self, login: str) -> bool:
 
-        with self.db_connection.cursor() as cursor:
+        async with self.pool.acquire() as conn:
             #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
-            cursor.execute("SELECT id FROM users WHERE login = %s", (login,))
-            res = cursor.fetchone()
+            res = await conn.fetchrow("SELECT id FROM users WHERE login = $1", (login))
             if res is not None:
                 return True
 
         return False
 
-    def register_user(self, login: str = None, password: str = None) -> bool:
+    async def register_user(self, login: str = None, password: str = None) -> bool:
         #auth by login
         if (login is None) or (password is None):
+            self.logger.error(f"{login}-{password}")
             return False
-        
-        ad = False
 
-        with self.db_connection.cursor() as cursor:
+        async with self.pool.acquire() as conn:
             #cursor.execute("SELECT id FROM users WHERE login = %s AND password = %s", (login, password))
-            cursor.execute("SELECT id FROM users WHERE login = %s", (login,))
-            res = cursor.fetchone()
+            res = await conn.fetchrow("SELECT id FROM users WHERE login = $1", (login))
             if res is None:
                 passwd = self.ph.hash(password)
-                cursor.execute("INSERT INTO users (login, password) VALUES (%s, %s)", (login, passwd))
-                ad = cursor.rowcount > 0
-        
-        if ad:
-            self.db_connection.commit()
-            return True
+                st = await conn.execute("INSERT INTO users (login, password) VALUES ($1, $2)", login, passwd)
+                return st == "INSERT 0 1"
 
         return False
 
-    def authenticate_user_by_tg(self, telegram_id: int) -> int | bool:
-        with self.db_connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
-            res = cursor.fetchone()
-            return res[0] if res is not None else False
+    async def authenticate_user_by_tg(self, telegram_id: int) -> int | bool:
+        async with self.pool.acquire() as conn:
+            res = await conn.fetchrow("SELECT id FROM users WHERE telegram_id = $1", telegram_id)
+            return res if res is not None else False
         
         return False
 
-    def get_authorization(self, identifier: Identifiers, value: int) -> bool:
+    async def get_authorization(self, identifier: Identifiers, value: int) -> bool:
         if identifier == Identifiers.ID:
-            with self.db_connection.cursor() as cursor:
-                cursor.execute("SELECT auth_status FROM users WHERE id = %s", (value,))
-                result = cursor.fetchone()
+            async with self.pool.acquire() as conn:
+                result = await conn.fetchrow("SELECT auth_status FROM users WHERE id = $1", value)
                 if result:
                     return result[0]
         if identifier == Identifiers.TELEGRAM_ID:
-            with self.db_connection.cursor() as cursor:
-                cursor.execute("SELECT auth_status FROM users WHERE telegram_id = %s", (value,))
-                result = cursor.fetchone()
+            async with self.pool.acquire() as conn:
+                result = await conn.fetchrow("SELECT auth_status FROM users WHERE telegram_id = $1", value)
                 if result:
                     return result[0]
         return False
 
-    def set_authorization(self, identifier: Identifiers, value: int, auth_status: bool = False) -> bool:
-        with self.db_connection.cursor() as cursor:
+    async def set_authorization(self, identifier: Identifiers, value: int, auth_status: bool = False) -> bool:
+        async with self.pool.acquire() as conn:
             status = False
             if identifier == Identifiers.ID:
-                cursor.execute("UPDATE users SET auth_status = %s WHERE id = %s", (auth_status, value))
-                status = cursor.rowcount > 0
+                st = await conn.execute("UPDATE users SET auth_status = $1 WHERE id = $2", auth_status, value)
+                status = st == "INSERT 0 1"
             if identifier == Identifiers.TELEGRAM_ID:
-                cursor.execute("UPDATE users SET auth_status = %s WHERE telegram_id = %s", (auth_status, value))
-                status = cursor.rowcount > 0
-            if status:
-                self.db_connection.commit()
+                st = await conn.execute("UPDATE users SET auth_status = $1 WHERE telegram_id = $2", auth_status, value)
+                status = st == "INSERT 0 1"
         return False
 
-    def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
-        with self.db_connection.cursor() as cursor:
-            cursor.execute("UPDATE users SET telegram_id = %s WHERE id = %s", ((telegram_id if status else None), id))
-            status = cursor.rowcount > 0
-
-        if status: 
-            self.db_connection.commit()
-        else:
-            self.db_connection.rollback()
+    async def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
+        status = False
+        async with self.pool.acquire() as conn:
+            st = await conn.execute("UPDATE users SET telegram_id = $1 WHERE id = $2", (telegram_id if status else None), id)
+            status = st == "INSERT 0 1"
         
         return status

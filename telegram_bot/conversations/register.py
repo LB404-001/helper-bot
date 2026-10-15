@@ -31,7 +31,7 @@ class Register:
 
         context.user_data["login"] = login
 
-        exist = self.auth.check_user_exist(login)
+        exist = await self.auth.check_user_exist(login)
         if exist:
             await update.message.reply_text("Логин занят")
             await update.message.reply_text("Введите логин")
@@ -52,9 +52,9 @@ class Register:
         
         #await update.message.reply_text(f"Получены login:{login} password:{password}")
         
-        success = self.auth.register_user(login, password)
+        success = await self.auth.register_user(login, password)
         if not success:
-            self.logger.info(f"Registration error. login:{login}")
+            self.logger.info(f"Registration error. login:{login}-{success}")
             await update.message.reply_text("Ошибка при регистрации, попробуйте позднее")
             return ConversationHandler.END
 

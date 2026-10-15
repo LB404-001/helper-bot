@@ -30,7 +30,7 @@ class Login:
 
         user_id = update.message.from_user.id
         self.logger.info("Truing authenticate user by tg")
-        id = self.auth.authenticate_user_by_tg(telegram_id=user_id)
+        id = await self.auth.authenticate_user_by_tg(telegram_id=user_id)
 
         if id:
             token = await self.sessions.new_session(id)
@@ -75,7 +75,7 @@ class Login:
             return ConversationHandler.END
 
         #authentication
-        id = self.auth.authenticate_user(login, password)
+        id = await self.auth.authenticate_user(login, password)
         if id: #creating session
             token = await self.sessions.new_session(id)
             if token is None:

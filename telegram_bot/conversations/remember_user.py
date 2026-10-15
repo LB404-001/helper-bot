@@ -38,9 +38,9 @@ class Remember:
         token = context.user_data.get("token", None)
         uid = context.user_data.get("id", None)
         if query.data == "confirm:y":
-            self.auth.remember_user(uid, user_id, True)
+            await self.auth.remember_user(uid, user_id, True)
         else:
-            self.auth.remember_user(uid, user_id, False)
+            await self.auth.remember_user(uid, user_id, False)
 
         await query.message.chat.send_message(f"Ваш аккаунт:{user_id} {"запомнен" if query.data == "confirm:y" else "забыт"}")
         return ConversationHandler.END
