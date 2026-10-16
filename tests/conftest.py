@@ -123,7 +123,6 @@ async def bot(fake):
     bot = Bot()
     bot.app = (Application.builder()
                     .token(bot.token)
-                    .concurrent_updates(1000)
                     .post_init(bot.post_init)
                     .request(fake)
                     .post_shutdown(bot.post_shutdown)

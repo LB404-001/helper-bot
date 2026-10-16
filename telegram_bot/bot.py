@@ -93,7 +93,6 @@ class Bot:
         self.chats: Chats
         self.app = (Application.builder()
                     .token(self.token)
-                    .concurrent_updates(1000)
                     .post_init(self.post_init)
                     .post_shutdown(self.post_shutdown)
                     .build())
@@ -197,16 +196,15 @@ class Bot:
                 pass
 
     async def post_init(self, app: Application):
-        self.auth.connect()
+        self.auth.connect(**DB_CONNECTION_SETTINGS)
     
     async def post_shutdown(self, app: Application):
         self.auth.disconnect()
 
-    async def build(self):
+    def build(self):
 
         self.sessions = RedisSessions(redis.asyncio.Redis(**REDIS_CONNECTION_SETTINGS), logger)
         self.auth = Authorization(**DB_CONNECTION_SETTINGS, logger=logger)
-        await self.auth.connect(**DB_CONNECTION_SETTINGS)
 
         img = ImageGen(sessions=self.sessions, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
@@ -222,9 +220,9 @@ class Bot:
 
         self.app.add_error_handler(self.error_handler)
 
-    async def run(self, mode: str):
+    def run(self, mode: str):
 
-        await self.build()
+        self.build()
 
         response = requests.post(f"https://api.telegram.org/bot{TOKEN}/deleteMyCommands")
         commands = [

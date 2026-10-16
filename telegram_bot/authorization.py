@@ -43,7 +43,13 @@ class Authorization:
                     return False
                 id, pwd = res
 
-                if self.ph.verify(pwd, password):
+                au = False
+                try:
+                    au = self.ph.verify(pwd, password)
+                except:
+                    return False
+                
+                if au: 
                     return id
         
         return False
@@ -77,7 +83,7 @@ class Authorization:
     async def authenticate_user_by_tg(self, telegram_id: int) -> int | bool:
         async with self.pool.acquire() as conn:
             res = await conn.fetchrow("SELECT id FROM users WHERE telegram_id = $1", telegram_id)
-            return res if res is not None else False
+            return res[0] if res is not None else False
         
         return False
 
@@ -106,7 +112,6 @@ class Authorization:
         return False
 
     async def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
-        status = False
         async with self.pool.acquire() as conn:
             st = await conn.execute("UPDATE users SET telegram_id = $1 WHERE id = $2", (telegram_id if status else None), id)
             status = st == "INSERT 0 1"
