@@ -15,13 +15,9 @@ class Login:
         self.logger = logger
         self.auth = auth
         self.sessions = sessions
-        self.password = None
-        self.login = None
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.logger.info("Login conversation initialized")
-        self.password = None
-        self.login = None
 
         context.user_data.pop("login", None)
         context.user_data.pop("password", None)
@@ -64,7 +60,6 @@ class Login:
         return PASSWORD
 
     async def get_password(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.password = update.message.text
 
         login = context.user_data.get("login", None)
         password = update.message.text
