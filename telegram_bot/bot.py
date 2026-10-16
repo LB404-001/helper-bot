@@ -196,10 +196,10 @@ class Bot:
                 pass
 
     async def post_init(self, app: Application):
-        self.auth.connect(**DB_CONNECTION_SETTINGS)
+        await self.auth.connect(**DB_CONNECTION_SETTINGS)
     
     async def post_shutdown(self, app: Application):
-        self.auth.disconnect()
+        await self.auth.disconnect()
 
     def build(self):
 

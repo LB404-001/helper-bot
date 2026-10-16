@@ -128,16 +128,15 @@ async def bot(fake):
                     .post_shutdown(bot.post_shutdown)
                     .build())
 
-    await bot.build()
+    bot.build()
 
     bot.errors = []
-    async def on_error(update, context):
-        bot.errors.append(context.error)
-    bot.app.add_error_handler(on_error)
 
     await bot.app.initialize()
+    await bot.post_init(bot.app)
     yield bot
     await bot.app.shutdown()
+    await bot.post_shutdown(bot.app)
 
 @pytest.fixture
 def user(bot, fake):
