@@ -12,13 +12,14 @@ MODEL, POSITIVE, NEGATIVE, CONFIRM = range(4)
 
 class ImageGen:
 
-    def __init__(self, sessions, logger: Logger):
+    def __init__(self, sessions, token: str, logger: Logger):
         self.models = {
             "Аниме персонажи": "novaAnimeXL_ilV180.safetensors",
             "Общая": "AnythingXL_xl.safetensors"
         }
         self.logger = logger
         self.sessions = sessions
+        self.token = token
 
     @require_session
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,6 +84,7 @@ class ImageGen:
 
             task = generate_image.delay(
                 "",
+                self.token,
                 update.effective_chat.id,
                 msg.message_id,
                 positive,

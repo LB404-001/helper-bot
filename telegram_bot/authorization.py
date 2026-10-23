@@ -10,7 +10,7 @@ class Identifiers(enum.Enum):
 
 class Authorization:
     def __init__(self, host, port, dbname, user, password, logger: Logger):
-        self.db_connection = psycopg.connect(host=host, port=port, dbname=dbname, user=user, password=password)
+        #self.db_connection = psycopg.connect(host=host, port=port, dbname=dbname, user=user, password=password)
         self.ph = PasswordHasher()
         self.logger = logger
     

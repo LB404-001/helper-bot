@@ -142,10 +142,6 @@ class Bot:
         return False
 
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-            response = "resp"
-            await update.message.reply_text(response)
-
-    async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         token = context.user_data.get("token", None)
         user_id = update.message.from_user.id
         logger.debug(f"Message received from user:{user_id}")
@@ -206,7 +202,7 @@ class Bot:
         self.sessions = RedisSessions(redis.asyncio.Redis(**REDIS_CONNECTION_SETTINGS), logger)
         self.auth = Authorization(**DB_CONNECTION_SETTINGS, logger=logger)
 
-        img = ImageGen(sessions=self.sessions, logger=logger)
+        img = ImageGen(sessions=self.sessions, token=TOKEN, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
         register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
         remember = Remember(sessions=self.sessions, auth=self.auth, logger=logger)
