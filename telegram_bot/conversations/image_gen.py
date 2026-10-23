@@ -78,11 +78,9 @@ class ImageGen:
             return ConversationHandler.END
 
         if update.message.text == "Да":
-            #cmf = Comfy()
-            await update.effective_chat.send_message("Отравка запроса...", reply_markup=ReplyKeyboardRemove())
+            await update.effective_chat.send_message("Прогресс", reply_markup=ReplyKeyboardRemove())
             msg = await update.effective_chat.send_message("В очереди")
 
-            #img = await cmf.base_scene(positive, negative, model, msg.edit_text)
             task = generate_image.delay(
                 "8519078212:AAF3V7g1y0mMBb0zZEulGhn3uBZSnF_U-8g",
                 update.effective_chat.id,
