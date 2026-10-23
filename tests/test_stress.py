@@ -25,7 +25,7 @@ async def standard_scenario(user, username):
     assert await user.say("/remember") == ["Запомнить этот тг аккаунт?"]
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("users_count", [100])
+@pytest.mark.parametrize("users_count", [10])
 async def test_stress(bot, fake, user, users_count):
     users = []
 

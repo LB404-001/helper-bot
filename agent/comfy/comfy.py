@@ -5,6 +5,10 @@ import json
 from anyio import open_process
 import httpx
 import websockets
+from pathlib import Path
+import redis
+from logging import Logger
+from celery import Celery
 
 class Comfy():
     def __init__(self, host: str = "127.0.0.1", port: int = 8188):
@@ -19,7 +23,7 @@ class Comfy():
         schema["4"]["inputs"]["ckpt_name"] = model
         rnd = Random()
         schema["3"]["inputs"]["seed"] = rnd.randint(0, 999999999)
-        uid = "123" #str(uuid.uuid4())
+        uid = str(uuid.uuid4())
 
         async with httpx.AsyncClient(base_url=self.connection, timeout=120) as comfy:
             async with websockets.connect(f"ws://{self.host}:{self.port}/ws?clientId={uid}") as ws:
@@ -62,3 +66,4 @@ class Comfy():
             if len(img) > 0:
                 return img[0]
             return False
+

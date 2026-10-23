@@ -2,6 +2,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
 from agent.comfy.comfy import Comfy
+from agent.comfy.worker import generate_image
 
 from telegram_bot.decorators.require_session import require_session
 
@@ -85,16 +86,21 @@ class ImageGen:
             return ConversationHandler.END
 
         if query.data == "confirm:True":
-            cmf = Comfy()
+            #cmf = Comfy()
             msg = await query.message.chat.send_message("Отравка запроса...")
 
-            img = await cmf.base_scene(positive, negative, model, msg.edit_text)
+            #img = await cmf.base_scene(positive, negative, model, msg.edit_text)
+            task = generate_image.delay(
+                "8519078212:AAF3V7g1y0mMBb0zZEulGhn3uBZSnF_U-8g",
+                update.effective_chat.id,
+                msg.id,
+                positive,
+                negative,
+                model
+            )
 
-            if isinstance(img, bytes):
-                await query.message.chat.send_photo(photo=img)
-                return ConversationHandler.END
+            return ConversationHandler.END
 
-            await query.message.chat.send_message(img)
         await query.message.chat.send_message("Неизвестная ошибка")
         return ConversationHandler.END
 
