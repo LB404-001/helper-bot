@@ -10,7 +10,6 @@ class Identifiers(enum.Enum):
 
 class Authorization:
     def __init__(self, host, port, dbname, user, password, logger: Logger):
-        #self.db_connection = psycopg.connect(host=host, port=port, dbname=dbname, user=user, password=password)
         self.ph = PasswordHasher()
         self.logger = logger
     
@@ -109,7 +108,7 @@ class Authorization:
             if identifier == Identifiers.TELEGRAM_ID:
                 st = await conn.execute("UPDATE users SET auth_status = $1 WHERE telegram_id = $2", auth_status, value)
                 status = st == "INSERT 0 1"
-        return False
+        return status
 
     async def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
         async with self.pool.acquire() as conn:
