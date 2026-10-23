@@ -117,3 +117,4 @@ def generate_image(
             files={"photo": (output["filename"], r.content, "image/png")},
             timeout=60
             )
+        tg(bot_token, "editMessageText", chat_id=chat_id, message_id=msg_id, text="Done")
