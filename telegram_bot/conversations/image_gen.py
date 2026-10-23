@@ -14,8 +14,8 @@ class ImageGen:
 
     def __init__(self, sessions, token: str, logger: Logger):
         self.models = {
-            "Аниме персонажи": "novaAnimeXL_ilV180.safetensors",
-            "Общая": "AnythingXL_xl.safetensors"
+            "аниме персонажи": "novaAnimeXL_ilV180.safetensors",
+            "общая": "AnythingXL_xl.safetensors"
         }
         self.logger = logger
         self.sessions = sessions
@@ -34,7 +34,7 @@ class ImageGen:
     
     @require_session
     async def get_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        context.user_data["model"] = self.models.get(update.message.text, None)
+        context.user_data["model"] = self.models.get(update.message.text.lower(), None)
 
         if context.user_data["model"] is None:
             await update.message.reply_text("Неизвестная модель", reply_markup=ReplyKeyboardRemove())
@@ -78,7 +78,7 @@ class ImageGen:
             await update.message.reply_text("Часть данных пусты", reply_markup=ReplyKeyboardRemove())
             return ConversationHandler.END
 
-        if update.message.text == "Да":
+        if update.message.text.lower() == "да":
             await update.effective_chat.send_message("Прогресс", reply_markup=ReplyKeyboardRemove())
             msg = await update.effective_chat.send_message("В очереди")
 
@@ -92,7 +92,7 @@ class ImageGen:
             )
             return ConversationHandler.END
 
-        elif update.message.text == "Нет":
+        elif update.message.text.lower() == "нет":
             return await self.cancel(update, context)
 
         await update.message.reply_text("Неизвестная ошибка")
