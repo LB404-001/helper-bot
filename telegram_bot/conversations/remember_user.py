@@ -37,17 +37,17 @@ class Remember:
 
         st = False
 
-        match update.message.text:
-            case "Да":
+        match update.message.text.lower():
+            case "да":
                 await self.auth.remember_user(uid, user_id, True)
-            case "Нет":
+            case "нет":
                 await self.auth.remember_user(uid, user_id, False)
             case _:
                 await update.message.reply_text("Неизвестный параметр", reply_markup=ReplyKeyboardRemove())
                 return ConversationHandler.END
 
         await update.message.reply_text(
-            f"Ваш аккаунт:{user_id} {"запомнен" if update.message.text == "Да" else "забыт"}",
+            f"Ваш аккаунт:{user_id} {"запомнен" if update.message.text == "да" else "забыт"}",
             reply_markup=ReplyKeyboardRemove()
             )
 
