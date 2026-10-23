@@ -114,6 +114,6 @@ class Authorization:
     async def remember_user(self, id: int, telegram_id: int, status: bool = False) -> bool:
         async with self.pool.acquire() as conn:
             st = await conn.execute("UPDATE users SET telegram_id = $1 WHERE id = $2", (telegram_id if status else None), id)
-            status = st == "INSERT 0 1"
+            status = st == "UPDATE 1"
         
         return status
