@@ -13,8 +13,8 @@ from celery.signals import worker_process_init
 TG = f"https://api.telegram.org/bot"
 
 app = Celery(
-    "worker", 
-    broker="redis://localhost:6379/0"
+    "worker",
+    broker=os.environ["CELERY_BROKER_URL"]
     )
 
 app.conf.task_routes = {"worker.generate_image": {"queue": "comfy"}}
@@ -25,14 +25,14 @@ comfy = {}
 
 @worker_process_init.connect
 def init_process(**kwargs):
-    url = os.environ["COMFY_URL"].rstrip("/").lstrip("http://")
+    url = os.environ["COMFY_URL"].strip().replace("http://", "").replace("https://", "").rstrip("/")
     s = requests.Session()
 
     s.get(f"http://{url}/system_stats", timeout=10).raise_for_status()  # health-check при старте
 
-    comfy["url"]=url
-    comfy["session"]=s
-    comfy["client_id"]=str(uuid.uuid4())
+    comfy["url"] = url
+    comfy["session"] = s
+    comfy["client_id"] = str(uuid.uuid4())
 
     
 def tg(token, method, *, files=None, timeout=30, **data):
@@ -56,7 +56,7 @@ def generate_image(
         ):
     
 
-    schema: dict = json.load(open("/home/lb404/Documents/projects/helper/agent/comfy/workflows/base_scene.json", "r"))
+    schema: dict = json.load(open("./agent/comfy/workflows/base_scene.json", "r"))
     schema["6"]["inputs"]["text"] = positive_prompt
     schema["7"]["inputs"]["text"] = negative_prompt
     schema["4"]["inputs"]["ckpt_name"] = model

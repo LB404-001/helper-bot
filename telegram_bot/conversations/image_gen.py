@@ -114,6 +114,9 @@ class ImageGen:
                 NEGATIVE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_negative)],
                 CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.confirm)],
             }, 
-            fallbacks=[CommandHandler("cancel", self.cancel)], 
+            fallbacks=[
+                CommandHandler("cancel", self.cancel),
+                MessageHandler(filters.COMMAND, self.cancel),
+                ], 
             allow_reentry=True
         )
