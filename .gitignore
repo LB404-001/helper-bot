@@ -1,5 +1,5 @@
-telegram_bot/settings.json
 telegram_bot/local_settings.json
+telegram_bot/container_settings.json
 
 .venv
 

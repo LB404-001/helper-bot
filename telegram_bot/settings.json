@@ -1,0 +1,27 @@
+{
+    "token": "",
+
+    "db_connection_settings": {
+        "host": "db",
+        "port": 5432,
+        "dbname": "",
+        "user": "",
+        "password": ""
+    },
+
+    "redis_connection_settings": {
+        "host": "redis",
+        "port": 6379,
+        "db": 0,
+        "decode_responses": true
+    },
+
+    "webhook_settings": {
+        "listen": "0.0.0.0",
+        "port": 8080,
+        "url_path": "telegram",
+        "webhook_url": "",
+        "secret_token": "",
+        "drop_pending_updates": true
+    }
+}
