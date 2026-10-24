@@ -54,7 +54,7 @@ class ImageGen:
         negative = context.user_data.get("negative_prompt", None)
         model = context.user_data.get("model", None)
 
-        await update.message.reply_text(f"Получены промпты:\nPositive:{positive}\nNegative:{negative}\nModel:{model}")
+        await update.message.reply_text(f"Positive:{positive}\nNegative:{negative}\nModel:{model}")
 
         keyboard = [[
             KeyboardButton("Да"),
