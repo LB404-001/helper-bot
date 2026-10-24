@@ -55,8 +55,8 @@ logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(log_handler)
 
-
-SETTINGS = json.load(open("telegram_bot/settings.json", "r"))
+sts = os.getenv("BOT_SETTINGS", "telegram_bot/settings.json")
+SETTINGS = json.load(open(sts, "r"))
 
 TOKEN = SETTINGS["token"]
 WEBHOOK_SETTINGS = SETTINGS["webhook_settings"]
