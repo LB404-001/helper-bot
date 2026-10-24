@@ -98,7 +98,7 @@ class Bot:
                     .build())
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text("Привет!")
+        await update.message.reply_text("Бот предназначен для использования как текстовый интерфейс для comfyUI\nПеред началом использования необходимо создать аккаунт через /register или меню\nПосле этого необходимо авторизоваться через /login\n\nТеперь возможно привязать и отвязать этот аккакут к телеграм аккаунту через /remember и запустить генерацию через /create_image")
 
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         error = context.error
@@ -126,7 +126,9 @@ class Bot:
         self.sessions = RedisSessions(redis.asyncio.Redis(**REDIS_CONNECTION_SETTINGS), logger)
         self.auth = Authorization(**DB_CONNECTION_SETTINGS, logger=logger)
 
-        img = ImageGen(sessions=self.sessions, token=TOKEN, logger=logger)
+        models = SETTINGS["comfy_settings"]["models"]
+
+        img = ImageGen(sessions=self.sessions, token=TOKEN, models=models, logger=logger)
         auth = Login(sessions=self.sessions, auth=self.auth, logger=logger)
         register = Register(sessions=self.sessions, auth=self.auth, logger=logger)
         remember = Remember(sessions=self.sessions, auth=self.auth, logger=logger)
