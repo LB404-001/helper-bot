@@ -23,5 +23,11 @@
         "webhook_url": "",
         "secret_token": "",
         "drop_pending_updates": true
+    },
+
+    "comfy_settings": {
+        "models": {
+            "name": "model_filename"
+        }
     }
 }

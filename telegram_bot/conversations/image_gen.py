@@ -12,11 +12,8 @@ MODEL, POSITIVE, NEGATIVE, CONFIRM = range(4)
 
 class ImageGen:
 
-    def __init__(self, sessions, token: str, logger: Logger):
-        self.models = {
-            "аниме персонажи": "novaAnimeXL_ilV180.safetensors",
-            "общая": "AnythingXL_xl.safetensors"
-        }
+    def __init__(self, sessions, token: str, models: dict, logger: Logger):
+        self.models = models
         self.logger = logger
         self.sessions = sessions
         self.token = token
