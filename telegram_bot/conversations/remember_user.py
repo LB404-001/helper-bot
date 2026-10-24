@@ -21,8 +21,8 @@ class Remember:
         self.logger.info("Remember conversation initialized")
 
         keyboard = [[
-            KeyboardButton("Да"),
-            KeyboardButton("Нет")
+            KeyboardButton("да"),
+            KeyboardButton("нет")
         ]]
 
         await update.message.reply_text("Запомнить этот тг аккаунт?", reply_markup=ReplyKeyboardMarkup(keyboard))
@@ -47,7 +47,7 @@ class Remember:
                 return ConversationHandler.END
 
         await update.message.reply_text(
-            f"Ваш аккаунт:{user_id} {"запомнен" if update.message.text == "да" else "забыт"}",
+            f"Ваш аккаунт:{user_id} {"запомнен" if update.message.text.lower() == "да" else "забыт"}",
             reply_markup=ReplyKeyboardRemove()
             )
 
@@ -63,6 +63,9 @@ class Remember:
             states={
                 CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.confirm)],
             }, 
-            fallbacks=[CommandHandler("cancel", self.cancel)], 
+            fallbacks=[
+                CommandHandler("cancel", self.cancel),
+                MessageHandler(filters.COMMAND, self.cancel),
+                ], 
             allow_reentry=True
         )

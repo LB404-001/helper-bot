@@ -74,6 +74,9 @@ class Register:
                 LOGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_login)],
                 PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_password)],
             }, 
-            fallbacks=[CommandHandler("cancel", self.cancel)], 
+            fallbacks=[
+                CommandHandler("cancel", self.cancel),
+                MessageHandler(filters.COMMAND, self.cancel),
+                ], 
             allow_reentry=True
         )
