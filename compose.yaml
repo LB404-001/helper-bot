@@ -12,6 +12,7 @@ services:
     environment:
       CELERY_BROKER_URL: "redis://redis:6379/0"
       COMFY_URL: "host.docker.internal:8188"
+      BOT_SETTINGS: "telegram_bot/container_settings.json"
 
     ports:
       - "40.0.0.2:8080:8080"
