@@ -118,3 +118,4 @@ def generate_image(
             timeout=60
             )
     tg(bot_token, "editMessageText", chat_id=chat_id, message_id=msg_id, text="Done")
+    r = requests.post(f"http://{comfy["url"]}/free")
